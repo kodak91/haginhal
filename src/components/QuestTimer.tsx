@@ -28,19 +28,30 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
   const undone = subtasks.filter((s) => !s.done);
 
   const [timer, setTimer] = useState<TimerState>(() => {
-    const id = undone[0]?.id ?? null;
-    const mins = undone[0]?.estimatedMinutes ?? 5;
-    return { isRunning: false, currentId: id, remainingSeconds: mins * 60 };
+    const first = undone[0] ?? null;
+    return {
+      isRunning: false,
+      currentId: first?.id ?? null,
+      remainingSeconds: (first?.estimatedMinutes ?? 5) * 60,
+    };
   });
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const advancingRef = useRef(false);
-  // Stores the ID of the subtask whose timer just expired — processed in expiration effect
-  const expiredIdRef = useRef<string | null>(null);
   const timerRef = useRef(timer);
   timerRef.current = timer;
 
-  // Notify parent of timer state (for karaoke in SubtaskList)
+  // Always-fresh callback refs — no stale closure issues in interval
+  const onSubtaskToggleRef = useRef(onSubtaskToggle);
+  onSubtaskToggleRef.current = onSubtaskToggle;
+  const onQuestCompleteRef = useRef(onQuestComplete);
+  onQuestCompleteRef.current = onQuestComplete;
+  const onTimerUpdateRef = useRef(onTimerUpdate);
+  onTimerUpdateRef.current = onTimerUpdate;
+  const subtasksRef = useRef(subtasks);
+  subtasksRef.current = subtasks;
+
+  // Notify parent every tick for karaoke fill
   useEffect(() => {
     const current = subtasks.find((s) => s.id === timer.currentId);
     const totalSeconds = (current?.estimatedMinutes ?? 5) * 60;
@@ -48,71 +59,77 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
     onTimerUpdate(timer.currentId, progress, timer.isRunning);
   }, [timer.currentId, timer.remainingSeconds, timer.isRunning]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tick — only records expiration; side effects handled separately
+  // Helper: advance timer to next undone subtask (or finish quest)
+  const advanceTo = useRef((nextId: string | null) => {
+    if (!nextId) {
+      playQuestComplete();
+      setTimeout(() => onQuestCompleteRef.current(), 800);
+      setTimer({ isRunning: false, currentId: null, remainingSeconds: 0 });
+    } else {
+      const next = subtasksRef.current.find((s) => s.id === nextId);
+      setTimeout(() => {
+        setTimer({
+          isRunning: true,
+          currentId: nextId,
+          remainingSeconds: (next?.estimatedMinutes ?? 5) * 60,
+        });
+      }, 500);
+    }
+  });
+
+  // Tick — calls onSubtaskToggle directly in interval (not inside setState updater)
   useEffect(() => {
     if (!timer.isRunning) { clearInterval(intervalRef.current); return; }
+
     intervalRef.current = setInterval(() => {
-      setTimer((prev) => {
-        if (prev.remainingSeconds > 1) return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
-        clearInterval(intervalRef.current);
-        if (prev.currentId) expiredIdRef.current = prev.currentId;
-        return { ...prev, isRunning: false, remainingSeconds: 0 };
-      });
+      const t = timerRef.current;
+      if (!t.isRunning || !t.currentId) return;
+
+      if (t.remainingSeconds > 1) {
+        setTimer((prev) => ({ ...prev, remainingSeconds: prev.remainingSeconds - 1 }));
+        return;
+      }
+
+      // Expired — stop timer, mark subtask done, advance
+      clearInterval(intervalRef.current);
+      const expiredId = t.currentId;
+      setTimer((prev) => ({ ...prev, isRunning: false, remainingSeconds: 0 }));
+      advancingRef.current = true;
+      playSubtaskComplete();
+      onSubtaskToggleRef.current(expiredId);
     }, 1000);
+
     return () => clearInterval(intervalRef.current);
   }, [timer.isRunning, timer.currentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle timer expiration: safe to call onSubtaskToggle here (outside updater)
-  useEffect(() => {
-    if (timer.isRunning || timer.remainingSeconds !== 0 || !expiredIdRef.current) return;
-    const id = expiredIdRef.current;
-    expiredIdRef.current = null;
-    advancingRef.current = true;
-    playSubtaskComplete();
-    onSubtaskToggle(id);
-  }, [timer.isRunning, timer.remainingSeconds]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // React to subtask prop changes (advance after completion or sync when paused)
+  // React to subtask prop changes: advance after completion, or sync when paused
   useEffect(() => {
     const { isRunning, currentId } = timerRef.current;
+
     if (advancingRef.current) {
       advancingRef.current = false;
-      const nextId = firstUndoneId(subtasks, currentId ?? undefined);
-      if (!nextId) {
-        playQuestComplete();
-        setTimeout(() => onQuestComplete(), 800);
-        setTimer({ isRunning: false, currentId: null, remainingSeconds: 0 });
-      } else {
-        const next = subtasks.find((s) => s.id === nextId)!;
-        setTimeout(() => {
-          setTimer({ isRunning: true, currentId: nextId, remainingSeconds: (next.estimatedMinutes ?? 5) * 60 });
-        }, 500);
-      }
+      advanceTo.current(firstUndoneId(subtasks, currentId ?? undefined));
       return;
     }
-    // If running but current subtask was manually toggled done
+
+    // Current subtask was manually checked done while timer was running
     const current = subtasks.find((s) => s.id === currentId);
     if (isRunning && current?.done) {
       clearInterval(intervalRef.current);
-      const nextId = firstUndoneId(subtasks, currentId ?? undefined);
-      if (!nextId) {
-        playQuestComplete();
-        setTimeout(() => onQuestComplete(), 800);
-        setTimer({ isRunning: false, currentId: null, remainingSeconds: 0 });
-      } else {
-        const next = subtasks.find((s) => s.id === nextId)!;
-        setTimeout(() => {
-          setTimer({ isRunning: true, currentId: nextId, remainingSeconds: (next.estimatedMinutes ?? 5) * 60 });
-        }, 300);
-      }
+      advanceTo.current(firstUndoneId(subtasks, currentId ?? undefined));
       return;
     }
-    // Sync currentId when paused and first undone changes
+
+    // Sync currentId to first undone when paused
     if (!isRunning) {
       const firstId = firstUndoneId(subtasks);
       if (firstId !== currentId) {
         const first = subtasks.find((s) => s.id === firstId);
-        setTimer({ isRunning: false, currentId: firstId, remainingSeconds: firstId && first ? (first.estimatedMinutes ?? 5) * 60 : 0 });
+        setTimer({
+          isRunning: false,
+          currentId: firstId,
+          remainingSeconds: firstId && first ? (first.estimatedMinutes ?? 5) * 60 : 0,
+        });
       }
     }
   }, [subtasks]); // eslint-disable-line react-hooks/exhaustive-deps

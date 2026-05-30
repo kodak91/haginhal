@@ -94,7 +94,7 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props
         <button
           onClick={onComplete}
           className="
-            flex-1 py-3.5 rounded-full
+            flex-1 min-w-0 py-3.5 rounded-full
             bg-[#1A1A1A] text-white
             text-[15px] font-semibold tracking-wide
             border-2 border-[#1A1A1A]

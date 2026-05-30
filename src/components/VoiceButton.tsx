@@ -252,7 +252,7 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
             )}
 
             {/* Input row */}
-            <div className="px-5 pt-1 flex gap-2">
+            <div className="px-5 pt-1 flex items-center gap-2">
               <input
                 autoFocus
                 type="text"
@@ -261,7 +261,7 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
                 onKeyDown={handleTextKeyDown}
                 placeholder={lines.length > 0 ? '더 추가하려면 입력 후 엔터' : modalPlaceholder}
                 className="
-                  flex-1 border-2 border-[#1A1A1A] rounded-full
+                  flex-1 min-w-0 border-2 border-[#1A1A1A] rounded-full
                   px-4 py-2.5 text-[15px] outline-none bg-[#F2F2F2]
                   focus:border-[#46E08A] transition-colors placeholder:text-[#C0C0C0]
                 "
