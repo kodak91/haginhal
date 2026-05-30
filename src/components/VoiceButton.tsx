@@ -3,6 +3,8 @@ import { Mic, Loader2, Send, X } from 'lucide-react';
 import type { ISpeechRecognition } from '../lib/speech';
 import { createRecognition } from '../lib/speech';
 
+const MAX_RECORD_MS = 30_000; // 30초
+
 type VoiceState = 'idle' | 'listening' | 'processing' | 'error';
 
 interface Props {
@@ -14,17 +16,21 @@ export function VoiceButton({ onInput }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [elapsed, setElapsed] = useState(0); // 녹음 경과 초
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const autoStopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const tickTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const isLongPress = useRef(false);
-  const gotResult = useRef(false);
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
+  const transcriptRef = useRef('');
 
   /* ── Submit ─────────────────────────────────────────────────── */
   const submitText = async (text: string): Promise<void> => {
     setVoiceState('processing');
     setModalOpen(false);
     setTextInput('');
+    setElapsed(0);
     try {
       await onInput(text);
       setVoiceState('idle');
@@ -35,39 +41,64 @@ export function VoiceButton({ onInput }: Props) {
     }
   };
 
+  /* ── Timers ─────────────────────────────────────────────────── */
+  const startTick = () => {
+    setElapsed(0);
+    tickTimer.current = setInterval(() => setElapsed((s) => s + 1), 1000);
+  };
+
+  const clearTimers = () => {
+    clearTimeout(autoStopTimer.current);
+    clearInterval(tickTimer.current);
+    setElapsed(0);
+  };
+
   /* ── Voice ──────────────────────────────────────────────────── */
   const startListening = () => {
     const rec = createRecognition();
     if (!rec) { setModalOpen(true); return; }
 
     recognitionRef.current = rec;
-    gotResult.current = false;
+    transcriptRef.current = '';
     setVoiceState('listening');
+    startTick();
+
+    // 30초 자동 종료
+    autoStopTimer.current = setTimeout(() => {
+      recognitionRef.current?.stop();
+    }, MAX_RECORD_MS);
 
     rec.onresult = (e) => {
-      gotResult.current = true;
-      const transcript = e.results[0][0].transcript.trim();
-      if (transcript) {
-        void submitText(transcript);
-      } else {
-        setVoiceState('idle');
+      // continuous 모드: 발화 단위로 쌓아서 합산
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          transcriptRef.current += e.results[i][0].transcript;
+        }
       }
     };
 
     rec.onerror = () => {
-      gotResult.current = true;
+      clearTimers();
       setVoiceState('idle');
     };
 
     rec.onend = () => {
-      if (!gotResult.current) setVoiceState('idle');
+      clearTimers();
+      const t = transcriptRef.current.trim();
+      if (t) {
+        void submitText(t);
+      } else {
+        setVoiceState('idle');
+      }
     };
 
     rec.start();
   };
 
   const stopListening = () => {
+    clearTimers();
     recognitionRef.current?.stop();
+    // onend에서 transcript 처리
   };
 
   /* ── Press handling ─────────────────────────────────────────── */
@@ -90,7 +121,7 @@ export function VoiceButton({ onInput }: Props) {
     }
   };
 
-  /* ── Icon ───────────────────────────────────────────────────── */
+  /* ── Icon / label ───────────────────────────────────────────── */
   const icon =
     voiceState === 'processing' ? (
       <Loader2 size={26} className="animate-spin" strokeWidth={1.5} />
@@ -109,7 +140,6 @@ export function VoiceButton({ onInput }: Props) {
             <span className="voice-ring-2 absolute inset-0 rounded-full bg-[#C8B89A]" />
           </>
         )}
-
         <button
           onMouseDown={handlePressStart}
           onMouseUp={handlePressEnd}
@@ -135,7 +165,7 @@ export function VoiceButton({ onInput }: Props) {
       {voiceState === 'listening' && (
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none">
           <span className="text-[13px] text-[#9A9A9A] bg-white border border-[#E0E0E0] rounded-full px-4 py-1.5">
-            듣고 있어요 — 손 떼면 완료
+            듣는 중 {elapsed}s / 30s — 손 떼면 완료
           </span>
         </div>
       )}
@@ -148,7 +178,6 @@ export function VoiceButton({ onInput }: Props) {
         </div>
       )}
 
-      {/* Text input modal */}
       {modalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"
@@ -174,10 +203,7 @@ export function VoiceButton({ onInput }: Props) {
               <button
                 onClick={() => { if (textInput.trim()) void submitText(textInput.trim()); }}
                 disabled={!textInput.trim()}
-                className="
-                  w-11 h-11 rounded-full bg-[#1A1A1A] text-white
-                  flex items-center justify-center disabled:opacity-30 transition-opacity
-                "
+                className="w-11 h-11 rounded-full bg-[#1A1A1A] text-white flex items-center justify-center disabled:opacity-30"
               >
                 <Send size={16} strokeWidth={1.5} />
               </button>

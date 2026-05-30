@@ -1,8 +1,9 @@
-// Minimal Web Speech API types (not universally in TS DOM lib)
 export interface ISpeechRecognitionEvent {
+  readonly resultIndex: number;
   readonly results: {
     readonly length: number;
     readonly [index: number]: {
+      readonly isFinal: boolean;
       readonly length: number;
       readonly [index: number]: { readonly transcript: string };
     };
@@ -33,7 +34,7 @@ export function createRecognition(): ISpeechRecognition | null {
   if (!SR) return null;
   const rec = new SR();
   rec.lang = 'ko-KR';
-  rec.continuous = false;
+  rec.continuous = true;   // 안드로이드 짧은 타임아웃 방지
   rec.interimResults = false;
   rec.maxAlternatives = 1;
   return rec;

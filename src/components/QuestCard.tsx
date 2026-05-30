@@ -15,9 +15,10 @@ interface Props {
   quest: Quest;
   onSubtaskToggle: (subtaskId: string) => void;
   onDefer: () => void;
+  onComplete: () => void;
 }
 
-export function QuestCard({ quest, onSubtaskToggle, onDefer }: Props) {
+export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props) {
   const doneCount = quest.subtasks.filter((s) => s.done).length;
   const total = quest.subtasks.length;
   const progress = total > 0 ? (doneCount / total) * 100 : 0;
@@ -98,6 +99,20 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer }: Props) {
             세부 단계가 없어요
           </div>
         )}
+
+        {/* Complete button */}
+        <button
+          onClick={onComplete}
+          className="
+            mt-5 w-full py-3.5 rounded-full
+            bg-[#1A1A1A] text-white
+            text-[15px] font-semibold tracking-wide
+            border-[1.5px] border-[#1A1A1A]
+            active:scale-[0.98] transition-transform
+          "
+        >
+          완료
+        </button>
       </div>
     </div>
   );

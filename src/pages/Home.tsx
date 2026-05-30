@@ -9,6 +9,7 @@ interface Props {
   onIndexChange: (i: number) => void;
   onSubtaskToggle: (questId: string, subtaskId: string) => void;
   onDefer: (questId: string) => void;
+  onComplete: (questId: string) => void;
 }
 
 export function Home({
@@ -17,6 +18,7 @@ export function Home({
   onIndexChange,
   onSubtaskToggle,
   onDefer,
+  onComplete,
 }: Props) {
   const [swipeDelta, setSwipeDelta] = useState(0);
   const [animating, setAnimating] = useState(false);
@@ -103,6 +105,7 @@ export function Home({
               quest={quest}
               onSubtaskToggle={(subtaskId) => onSubtaskToggle(quest.id, subtaskId)}
               onDefer={() => onDefer(quest.id)}
+              onComplete={() => onComplete(quest.id)}
             />
           )}
         </div>

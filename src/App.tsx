@@ -15,7 +15,7 @@ import { processVoiceInput } from './lib/claude';
 import type { AIResponse, Quest, Subtask } from './types/quest';
 import { Login } from './pages/Login';
 import { Home } from './pages/Home';
-import { Calendar } from './pages/Calendar';
+import { Journal } from './pages/Journal';
 import { History } from './pages/History';
 import { BottomNav } from './components/BottomNav';
 import type { Page } from './components/BottomNav';
@@ -110,13 +110,7 @@ function MainApp({ user }: { user: User }) {
         setPage('home');
         showToast('퀘스트 추가됐어요!', 'ok');
       } else if (result.action === 'complete') {
-        const target = quests[currentIndex];
-        if (target) {
-          await updateDoc(doc(db, 'users', user.uid, 'quests', target.id), {
-            done: true,
-          });
-          showToast('완료!', 'ok');
-        }
+        await handleComplete(quests[currentIndex]?.id ?? '');
       } else if (result.action === 'update') {
         showToast('수정 기능은 Phase 2에서 추가돼요');
       }
@@ -140,6 +134,12 @@ function MainApp({ user }: { user: User }) {
     await updateDoc(doc(db, 'users', user.uid, 'quests', questId), {
       subtasks: updated,
     });
+  };
+
+  const handleComplete = async (questId: string) => {
+    if (!questId) return;
+    await updateDoc(doc(db, 'users', user.uid, 'quests', questId), { done: true });
+    showToast('완료! 잘 했어요', 'ok');
   };
 
   const handleDefer = async (questId: string) => {
@@ -188,10 +188,11 @@ function MainApp({ user }: { user: User }) {
             onIndexChange={setCurrentIndex}
             onSubtaskToggle={handleSubtaskToggle}
             onDefer={handleDefer}
+            onComplete={handleComplete}
           />
         )}
-        {page === 'calendar' && <Calendar />}
-        {page === 'history' && <History />}
+        {page === 'journal' && <Journal quests={quests} />}
+        {page === 'history' && <History userId={user.uid} />}
         {page === 'settings' && <Settings />}
       </main>
 
