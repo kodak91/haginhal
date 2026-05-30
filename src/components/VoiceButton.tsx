@@ -4,7 +4,6 @@ import type { ISpeechRecognition } from '../lib/speech';
 import { createRecognition } from '../lib/speech';
 
 const MAX_RECORD_MS = 30_000;
-const SILENCE_MS = 5_000;
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'error';
 
@@ -23,7 +22,6 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const autoStopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const silenceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const tickTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const isLongPress = useRef(false);
   const isListeningRef = useRef(false);
@@ -32,7 +30,6 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
 
   const clearAllTimers = () => {
     clearTimeout(autoStopTimer.current);
-    clearTimeout(silenceTimer.current);
     clearInterval(tickTimer.current);
     setElapsed(0);
   };
@@ -58,14 +55,6 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
     tickTimer.current = setInterval(() => setElapsed((s) => s + 1), 1000);
   };
 
-  const resetSilenceTimer = () => {
-    clearTimeout(silenceTimer.current);
-    silenceTimer.current = setTimeout(() => {
-      isListeningRef.current = false;
-      recognitionRef.current?.stop();
-    }, SILENCE_MS);
-  };
-
   const startListening = () => {
     const rec = createRecognition();
     if (!rec) { setModalOpen(true); return; }
@@ -75,7 +64,6 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
     isListeningRef.current = true;
     setVoiceState('listening');
     startTick();
-    resetSilenceTimer();
 
     autoStopTimer.current = setTimeout(() => {
       isListeningRef.current = false;
@@ -83,7 +71,6 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
     }, MAX_RECORD_MS);
 
     rec.onresult = (e) => {
-      resetSilenceTimer();
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) {
           transcriptRef.current += e.results[i][0].transcript;
@@ -92,7 +79,6 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
     };
 
     rec.onerror = (err) => {
-      // no-speech is expected — ignore, let silence timer fire
       if (err.error === 'no-speech' || err.error === 'audio-capture') return;
       isListeningRef.current = false;
       clearAllTimers();
@@ -101,7 +87,7 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
 
     rec.onend = () => {
       if (isListeningRef.current) {
-        // Browser ended early (mobile timeout) — restart to keep listening
+        // 브라우저가 짧은 정적에 종료 → 재시작 (사용자가 버튼 떼기 전까지 유지)
         try { rec.start(); } catch { /* ignore */ }
         return;
       }
@@ -217,7 +203,7 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
       {voiceState === 'listening' && (
         <div className="absolute bottom-24 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none">
           <span className="text-[13px] text-[#9A9A9A] bg-white border border-[#E0E0E0] rounded-full px-4 py-1.5">
-            듣는 중 {elapsed}s — 5초 침묵 시 자동 완료
+            듣는 중 {elapsed}s — 손 떼면 완료
           </span>
         </div>
       )}
