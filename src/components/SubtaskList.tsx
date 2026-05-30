@@ -29,7 +29,7 @@ export function SubtaskList({ subtasks, onToggle }: Props) {
             <button
               onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
               className={`
-                mt-0.5 shrink-0 w-5 h-5 rounded-full border-[1.5px] border-[#1A1A1A]
+                mt-0.5 shrink-0 w-5 h-5 rounded-full border-2 border-[#1A1A1A]
                 flex items-center justify-center transition-colors
                 ${isDone ? 'bg-[#1A1A1A]' : 'bg-transparent'}
               `}

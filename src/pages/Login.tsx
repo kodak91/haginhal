@@ -20,10 +20,10 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#F5F0E8] flex flex-col items-center justify-center px-8">
+    <div className="min-h-[100dvh] bg-[#F2F2F2] flex flex-col items-center justify-center px-8">
       {/* Logo area */}
       <div className="mb-12 text-center">
-        <div className="w-20 h-20 rounded-2xl bg-[#C8B89A] border-[1.5px] border-[#1A1A1A] flex items-center justify-center mx-auto mb-6">
+        <div className="w-20 h-20 rounded-2xl bg-[#46E08A] border-2 border-[#1A1A1A] flex items-center justify-center mx-auto mb-6">
           <span className="text-3xl">✓</span>
         </div>
         <h1 className="text-[26px] font-bold text-[#1A1A1A] leading-tight mb-2">
@@ -44,7 +44,7 @@ export function Login() {
             bg-[#1A1A1A] text-white
             rounded-full py-4 px-6
             text-[15px] font-semibold
-            border-[1.5px] border-[#1A1A1A]
+            border-2 border-[#1A1A1A]
             disabled:opacity-50 transition-opacity
             active:scale-[0.98] transition-transform
           "

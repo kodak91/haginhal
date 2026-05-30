@@ -45,6 +45,7 @@ function questsCol(uid: string) {
 function MainApp({ user }: { user: User }) {
   const [page, setPage] = useState<Page>('home');
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [completedQuests, setCompletedQuests] = useState<Quest[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'error' | 'ok' } | null>(null);
@@ -82,6 +83,30 @@ function MainApp({ user }: { user: User }) {
         showToast('데이터 로딩 실패: ' + err.message);
       }
     );
+  }, [user.uid]);
+
+  // Completed quests listener
+  useEffect(() => {
+    const q = query(questsCol(user.uid), where('done', '==', true));
+    return onSnapshot(q, (snap) => {
+      const list = snap.docs
+        .map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            createdAt: data.createdAt?.toDate?.() ?? new Date(),
+            scheduledAt: data.scheduledAt?.toDate?.() ?? null,
+            completedAt: data.completedAt?.toDate?.() ?? undefined,
+          } as Quest;
+        })
+        .sort((a, b) => {
+          const aDate = a.completedAt ?? a.createdAt;
+          const bDate = b.completedAt ?? b.createdAt;
+          return bDate.getTime() - aDate.getTime();
+        });
+      setCompletedQuests(list);
+    });
   }, [user.uid]);
 
   const handleVoiceInput = async (text: string): Promise<void> => {
@@ -138,7 +163,10 @@ function MainApp({ user }: { user: User }) {
 
   const handleComplete = async (questId: string) => {
     if (!questId) return;
-    await updateDoc(doc(db, 'users', user.uid, 'quests', questId), { done: true });
+    await updateDoc(doc(db, 'users', user.uid, 'quests', questId), {
+      done: true,
+      completedAt: serverTimestamp(),
+    });
     showToast('완료! 잘 했어요', 'ok');
   };
 
@@ -152,12 +180,12 @@ function MainApp({ user }: { user: User }) {
   };
 
   return (
-    <div className="flex flex-col bg-[#F5F0E8]" style={{ height: '100dvh' }}>
+    <div className="flex flex-col bg-[#F2F2F2]" style={{ height: '100dvh' }}>
       {/* Processing indicator */}
       {isProcessing && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-2 bg-white border-[1.5px] border-[#1A1A1A] rounded-full px-4 py-2">
-            <Loader2 size={14} className="animate-spin text-[#C8B89A]" />
+          <div className="flex items-center gap-2 bg-white border-2 border-[#1A1A1A] rounded-full px-4 py-2">
+            <Loader2 size={14} className="animate-spin text-[#46E08A]" />
             <span className="text-[13px] font-medium text-[#1A1A1A]">
               AI가 분석 중이에요
             </span>
@@ -171,8 +199,8 @@ function MainApp({ user }: { user: User }) {
           <div
             className={`
               flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium
-              border-[1.5px] border-[#1A1A1A]
-              ${toast.type === 'ok' ? 'bg-[#C8B89A] text-[#1A1A1A]' : 'bg-white text-red-500'}
+              border-2 border-[#1A1A1A]
+              ${toast.type === 'ok' ? 'bg-[#46E08A] text-[#1A1A1A]' : 'bg-white text-red-500'}
             `}
           >
             {toast.msg}
@@ -191,8 +219,8 @@ function MainApp({ user }: { user: User }) {
             onComplete={handleComplete}
           />
         )}
-        {page === 'journal' && <Journal quests={quests} />}
-        {page === 'history' && <History userId={user.uid} />}
+        {page === 'journal' && <Journal quests={quests} completedQuests={completedQuests} />}
+        {page === 'history' && <History completedQuests={completedQuests} />}
         {page === 'settings' && <Settings />}
       </main>
 
@@ -219,10 +247,10 @@ export default function App() {
   if (authLoading) {
     return (
       <div
-        className="flex items-center justify-center bg-[#F5F0E8]"
+        className="flex items-center justify-center bg-[#F2F2F2]"
         style={{ height: '100dvh' }}
       >
-        <Loader2 size={28} className="animate-spin text-[#C8B89A]" strokeWidth={1.5} />
+        <Loader2 size={28} className="animate-spin text-[#46E08A]" strokeWidth={1.5} />
       </div>
     );
   }

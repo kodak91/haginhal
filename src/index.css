@@ -3,12 +3,12 @@
 @theme {
   --font-pretendard: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
-  --color-warm-bg: #F5F0E8;
+  --color-warm-bg: #F2F2F2;
   --color-warm-card: #FFFFFF;
   --color-warm-text: #1A1A1A;
   --color-warm-sub: #9A9A9A;
   --color-warm-border: #1A1A1A;
-  --color-warm-key: #C8B89A;
+  --color-warm-key: #46E08A;
 }
 
 *, *::before, *::after {
@@ -25,7 +25,7 @@ html, body, #root {
 
 body {
   font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  background-color: #F5F0E8;
+  background-color: #F2F2F2;
   color: #1A1A1A;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

@@ -136,8 +136,8 @@ export function VoiceButton({ onInput }: Props) {
       <div className="relative flex items-center justify-center">
         {voiceState === 'listening' && (
           <>
-            <span className="voice-ring absolute inset-0 rounded-full bg-[#C8B89A]" />
-            <span className="voice-ring-2 absolute inset-0 rounded-full bg-[#C8B89A]" />
+            <span className="voice-ring absolute inset-0 rounded-full bg-[#46E08A]" />
+            <span className="voice-ring-2 absolute inset-0 rounded-full bg-[#46E08A]" />
           </>
         )}
         <button
@@ -148,13 +148,13 @@ export function VoiceButton({ onInput }: Props) {
           onTouchEnd={handlePressEnd}
           aria-label="할일 입력"
           className={`
-            relative z-10 w-16 h-16 rounded-full border-[1.5px] border-[#1A1A1A]
+            relative z-10 w-16 h-16 rounded-full border-2 border-[#1A1A1A]
             flex items-center justify-center transition-transform active:scale-95
             ${voiceState === 'listening'
               ? 'bg-[#1A1A1A] text-white'
               : voiceState === 'error'
               ? 'bg-red-50 text-red-500'
-              : 'bg-[#C8B89A] text-[#1A1A1A]'
+              : 'bg-[#46E08A] text-[#1A1A1A]'
             }
           `}
         >
@@ -183,7 +183,7 @@ export function VoiceButton({ onInput }: Props) {
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/20"
           onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false); }}
         >
-          <div className="w-full max-w-lg bg-white border-t-[1.5px] border-[#1A1A1A] rounded-t-3xl p-5 pb-10">
+          <div className="w-full max-w-lg bg-white border-t-2 border-[#1A1A1A] rounded-t-3xl p-5 pb-10">
             <div className="w-10 h-1 bg-[#E0E0E0] rounded-full mx-auto mb-5" />
             <p className="text-[13px] text-[#9A9A9A] mb-3">할일을 입력해 주세요</p>
             <div className="flex gap-2">
@@ -195,9 +195,9 @@ export function VoiceButton({ onInput }: Props) {
                 onKeyDown={(e) => { if (e.key === 'Enter' && textInput.trim()) void submitText(textInput.trim()); }}
                 placeholder="예: 내일까지 보고서 작성하기"
                 className="
-                  flex-1 border-[1.5px] border-[#1A1A1A] rounded-full
-                  px-4 py-2.5 text-[15px] outline-none bg-[#F5F0E8]
-                  focus:border-[#C8B89A] transition-colors placeholder:text-[#C0C0C0]
+                  flex-1 border-2 border-[#1A1A1A] rounded-full
+                  px-4 py-2.5 text-[15px] outline-none bg-[#F2F2F2]
+                  focus:border-[#46E08A] transition-colors placeholder:text-[#C0C0C0]
                 "
               />
               <button

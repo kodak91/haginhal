@@ -33,7 +33,7 @@ interface Props {
 
 export function BottomNav({ currentPage, onNavigate, onVoiceInput }: Props) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#F5F0E8] border-t-[1.5px] border-[#1A1A1A]">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#F2F2F2] border-t-2 border-[#1A1A1A]">
       <div className="relative flex items-center justify-around px-2 h-16">
         <NavItem
           icon={<Home size={22} strokeWidth={1.5} />}

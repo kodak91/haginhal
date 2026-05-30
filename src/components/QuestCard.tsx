@@ -6,8 +6,8 @@ const CATEGORY_ICON = { '실내': '🏠', '외출': '🚶' };
 const TIME_LABEL = { '오전': '오전', '오후': '오후', '저녁': '저녁', '미정': '미정' };
 const PRIORITY_COLOR = {
   high: 'bg-[#1A1A1A] text-white',
-  medium: 'bg-[#F5F0E8] text-[#1A1A1A] border border-[#1A1A1A]',
-  low: 'bg-[#F5F0E8] text-[#9A9A9A] border border-[#9A9A9A]',
+  medium: 'bg-[#F2F2F2] text-[#1A1A1A] border border-[#1A1A1A]',
+  low: 'bg-[#F2F2F2] text-[#9A9A9A] border border-[#9A9A9A]',
 };
 const PRIORITY_LABEL = { high: '급함', medium: '보통', low: '여유' };
 
@@ -26,14 +26,14 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props
   return (
     <div
       className="
-        bg-white border-[1.5px] border-[#1A1A1A] rounded-2xl
+        bg-white border-2 border-[#1A1A1A] rounded-2xl
         flex flex-col h-full overflow-hidden
       "
     >
       {/* Top bar: progress */}
-      <div className="h-1 bg-[#F5F0E8] rounded-t-2xl overflow-hidden">
+      <div className="h-1 bg-[#F2F2F2] rounded-t-2xl overflow-hidden">
         <div
-          className="h-full bg-[#C8B89A] transition-all duration-500"
+          className="h-full bg-[#46E08A] transition-all duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -43,15 +43,15 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props
         <div className="flex items-start justify-between gap-3 mb-3">
           {/* Tags */}
           <div className="flex flex-wrap gap-1.5">
-            <Tag className="bg-[#F5F0E8] text-[#1A1A1A]">
+            <Tag className="bg-[#F2F2F2] text-[#1A1A1A]">
               <span>{CATEGORY_ICON[quest.category]}</span>
               <span>{quest.category}</span>
             </Tag>
-            <Tag className="bg-[#F5F0E8] text-[#1A1A1A]">
+            <Tag className="bg-[#F2F2F2] text-[#1A1A1A]">
               <Clock size={11} strokeWidth={2} />
               <span>{TIME_LABEL[quest.timeOfDay]}</span>
             </Tag>
-            <Tag className="bg-[#F5F0E8] text-[#1A1A1A]">
+            <Tag className="bg-[#F2F2F2] text-[#1A1A1A]">
               <MapPin size={11} strokeWidth={2} />
               <span>{quest.estimatedMinutes}분</span>
             </Tag>
@@ -107,7 +107,7 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props
             mt-5 w-full py-3.5 rounded-full
             bg-[#1A1A1A] text-white
             text-[15px] font-semibold tracking-wide
-            border-[1.5px] border-[#1A1A1A]
+            border-2 border-[#1A1A1A]
             active:scale-[0.98] transition-transform
           "
         >

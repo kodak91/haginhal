@@ -53,7 +53,7 @@ export function Home({
   if (quests.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 px-8 text-center">
-        <CheckCircle2 size={48} strokeWidth={1} className="text-[#C8B89A]" />
+        <CheckCircle2 size={48} strokeWidth={1} className="text-[#46E08A]" />
         <p className="text-[18px] font-semibold text-[#1A1A1A]">
           오늘 할 일이 없어요
         </p>

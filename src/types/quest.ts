@@ -16,6 +16,7 @@ export interface Quest {
   order: number;
   createdAt: Date;
   scheduledAt: Date | null;
+  completedAt?: Date;
 }
 
 export type AIResponse =
