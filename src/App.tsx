@@ -8,6 +8,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   doc,
   serverTimestamp,
   setDoc,
@@ -247,6 +248,21 @@ function MainApp({ user }: { user: User }) {
     showToast('완료! 잘 했어요 🎉', 'ok');
   };
 
+  const handleRestore = async (questId: string) => {
+    await updateDoc(doc(db, 'users', user.uid, 'quests', questId), {
+      done: false,
+      completedAt: deleteField(),
+    });
+    showToast('다시 목록으로 올렸어요', 'ok');
+  };
+
+  const handleDeleteQuest = async (questId: string) => {
+    clearTimeout(scheduledNotifs.current.get(questId));
+    scheduledNotifs.current.delete(questId);
+    await deleteDoc(doc(db, 'users', user.uid, 'quests', questId));
+    showToast('삭제했어요', 'ok');
+  };
+
   const handleReorder = (orderedQuests: Quest[]) => {
     void Promise.all(
       orderedQuests.map((q, i) =>
@@ -341,6 +357,8 @@ function MainApp({ user }: { user: User }) {
             onComplete={handleComplete}
             onEditSave={handleEditSave}
             onReorder={handleReorder}
+            onRestore={handleRestore}
+            onDelete={handleDeleteQuest}
           />
         )}
         {page === 'history' && <History completedQuests={completedQuests} />}

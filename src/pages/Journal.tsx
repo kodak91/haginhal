@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Quest, Subtask } from '../types/quest';
-import { Zap, GripVertical, X, Plus, ChevronRight } from 'lucide-react';
+import { Zap, GripVertical, X, Plus, ChevronRight, Trash2, RotateCcw } from 'lucide-react';
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
 const PRIORITY_LABEL = { high: '급함', medium: '보통', low: '여유' };
@@ -19,9 +19,11 @@ interface Props {
   onComplete: (questId: string) => void;
   onEditSave: (questId: string, title: string, subtasks: Subtask[]) => Promise<void>;
   onReorder: (orderedQuests: Quest[]) => void;
+  onRestore: (questId: string) => void;
+  onDelete: (questId: string) => void;
 }
 
-export function Journal({ quests, completedQuests, onComplete, onEditSave, onReorder }: Props) {
+export function Journal({ quests, completedQuests, onComplete, onEditSave, onReorder, onRestore, onDelete }: Props) {
   const sorted = [...quests].sort(
     (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
   );
@@ -210,13 +212,22 @@ export function Journal({ quests, completedQuests, onComplete, onEditSave, onReo
                   {quest.title}
                 </p>
 
-                {/* Right: meta */}
+                {/* Right: meta + actions */}
                 <div className="shrink-0 flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[quest.priority]}`} />
                   <span className="text-[12px] text-[#9A9A9A] whitespace-nowrap">{metaStr}</span>
-                  {editMode && (
-                    <ChevronRight size={14} strokeWidth={1.5} className="text-[#C0C0C0] ml-0.5" />
-                  )}
+                  {editMode ? (
+                    <>
+                      <ChevronRight size={14} strokeWidth={1.5} className="text-[#C0C0C0]" />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(quest.id); }}
+                        className="ml-1 w-7 h-7 rounded-full flex items-center justify-center text-[#C0C0C0] active:text-red-400 active:bg-red-50 transition-colors"
+                        aria-label="삭제"
+                      >
+                        <Trash2 size={14} strokeWidth={1.5} />
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </li>
             );
@@ -231,11 +242,12 @@ export function Journal({ quests, completedQuests, onComplete, onEditSave, onReo
             </li>
           )}
 
-          {/* Completed quests */}
+          {/* Completed quests — tap to restore */}
           {completedQuests.map((quest) => (
             <li
               key={quest.id}
-              className="bg-[#F0F0F0] border-2 border-[#E0E0E0] rounded-2xl px-4 py-3 flex items-center gap-3 mb-2 opacity-60"
+              onClick={() => onRestore(quest.id)}
+              className="bg-[#F0F0F0] border-2 border-[#E0E0E0] rounded-2xl px-4 py-3 flex items-center gap-3 mb-2 opacity-60 cursor-pointer active:opacity-100 active:border-[#1A1A1A] transition-all"
             >
               <span className="shrink-0 w-6 h-6 rounded-full bg-[#C0C0C0] flex items-center justify-center">
                 <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
@@ -245,6 +257,7 @@ export function Journal({ quests, completedQuests, onComplete, onEditSave, onReo
               <p className="flex-1 text-[14px] text-[#9A9A9A] truncate line-through decoration-[#B0B0B0]">
                 {quest.title}
               </p>
+              <RotateCcw size={13} strokeWidth={1.5} className="shrink-0 text-[#C0C0C0]" />
             </li>
           ))}
         </ul>
