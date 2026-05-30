@@ -247,6 +247,14 @@ function MainApp({ user }: { user: User }) {
     showToast('완료! 잘 했어요 🎉', 'ok');
   };
 
+  const handleReorder = (orderedQuests: Quest[]) => {
+    void Promise.all(
+      orderedQuests.map((q, i) =>
+        updateDoc(doc(db, 'users', user.uid, 'quests', q.id), { order: i + 1 })
+      )
+    );
+  };
+
   const handleEditSave = async (questId: string, title: string, subtasks: Subtask[]) => {
     await updateDoc(doc(db, 'users', user.uid, 'quests', questId), { title, subtasks });
     showToast('저장됐어요!', 'ok');
@@ -332,6 +340,7 @@ function MainApp({ user }: { user: User }) {
             completedQuests={completedQuests}
             onComplete={handleComplete}
             onEditSave={handleEditSave}
+            onReorder={handleReorder}
           />
         )}
         {page === 'history' && <History completedQuests={completedQuests} />}
