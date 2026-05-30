@@ -7,6 +7,7 @@ interface Props {
   subtasks: Subtask[];
   onSubtaskToggle: (id: string) => void;
   onQuestComplete: () => void;
+  onTimerUpdate: (id: string | null, progress: number, isRunning: boolean) => void;
 }
 
 interface TimerState {
@@ -23,7 +24,7 @@ function firstUndoneId(subtasks: Subtask[], afterId?: string): string | null {
   return null;
 }
 
-export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props) {
+export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimerUpdate }: Props) {
   const undone = subtasks.filter((s) => !s.done);
 
   const [timer, setTimer] = useState<TimerState>(() => {
@@ -37,17 +38,20 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
   const timerRef = useRef(timer);
   timerRef.current = timer;
 
-  // ── Tick ─────────────────────────────────────────────────────────
+  // Notify parent of timer state (for karaoke in SubtaskList)
   useEffect(() => {
-    if (!timer.isRunning) {
-      clearInterval(intervalRef.current);
-      return;
-    }
+    const current = subtasks.find((s) => s.id === timer.currentId);
+    const totalSeconds = (current?.estimatedMinutes ?? 5) * 60;
+    const progress = totalSeconds > 0 ? Math.max(0, 1 - timer.remainingSeconds / totalSeconds) : 0;
+    onTimerUpdate(timer.currentId, progress, timer.isRunning);
+  }, [timer.currentId, timer.remainingSeconds, timer.isRunning]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tick
+  useEffect(() => {
+    if (!timer.isRunning) { clearInterval(intervalRef.current); return; }
     intervalRef.current = setInterval(() => {
       setTimer((prev) => {
-        if (prev.remainingSeconds > 1) {
-          return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
-        }
+        if (prev.remainingSeconds > 1) return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
         clearInterval(intervalRef.current);
         if (prev.currentId) {
           advancingRef.current = true;
@@ -60,10 +64,9 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
     return () => clearInterval(intervalRef.current);
   }, [timer.isRunning, timer.currentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── React to subtask changes ──────────────────────────────────────
+  // React to subtask prop changes
   useEffect(() => {
     const { isRunning, currentId } = timerRef.current;
-
     if (advancingRef.current) {
       advancingRef.current = false;
       const nextId = firstUndoneId(subtasks, currentId ?? undefined);
@@ -79,7 +82,6 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
       }
       return;
     }
-
     const current = subtasks.find((s) => s.id === currentId);
     if (isRunning && current?.done) {
       clearInterval(intervalRef.current);
@@ -96,70 +98,32 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
       }
       return;
     }
-
     if (!isRunning) {
       const firstId = firstUndoneId(subtasks);
       if (firstId !== currentId) {
         const first = subtasks.find((s) => s.id === firstId);
-        setTimer({
-          isRunning: false,
-          currentId: firstId,
-          remainingSeconds: firstId && first ? (first.estimatedMinutes ?? 5) * 60 : 0,
-        });
+        setTimer({ isRunning: false, currentId: firstId, remainingSeconds: firstId && first ? (first.estimatedMinutes ?? 5) * 60 : 0 });
       }
     }
   }, [subtasks]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── No undone subtasks ────────────────────────────────────────────
   if (undone.length === 0 || !timer.currentId) return null;
 
-  const current = subtasks.find((s) => s.id === timer.currentId);
-  if (!current) return null;
-
-  const totalSeconds = (current.estimatedMinutes ?? 5) * 60;
-  const progress = totalSeconds > 0 ? Math.max(0, 1 - timer.remainingSeconds / totalSeconds) : 0;
-
-  const handleToggle = () => {
-    if (timer.currentId === null) return;
-    setTimer((prev) => ({ ...prev, isRunning: !prev.isRunning }));
-  };
-
+  // Render: button only (placed in card footer by QuestCard)
   return (
-    <div className="mt-3 flex items-center gap-2.5 px-0.5">
-      {/* ▶ / ■ icon only */}
-      <button
-        onClick={handleToggle}
-        aria-label={timer.isRunning ? '일시정지' : '타이머 시작'}
-        className="
-          shrink-0 w-7 h-7 rounded-full border-2 border-[#1A1A1A]
-          flex items-center justify-center
-          active:bg-[#46E08A] transition-colors
-        "
-      >
-        {timer.isRunning
-          ? <Square size={10} fill="#1A1A1A" strokeWidth={0} />
-          : <Play size={11} fill="#1A1A1A" strokeWidth={0} className="translate-x-px" />
-        }
-      </button>
-
-      {/* Karaoke text: fills left→right as timer progresses */}
-      <div className="flex-1 relative overflow-hidden" style={{ height: '1.1rem' }}>
-        {/* Base layer: unfilled (light) */}
-        <span className="absolute inset-0 text-[12px] font-medium text-[#D0D0D0] whitespace-nowrap leading-none flex items-center">
-          {current.title}
-        </span>
-        {/* Fill layer: clips from left */}
-        <span
-          className="absolute inset-0 text-[12px] font-medium text-[#1A1A1A] whitespace-nowrap overflow-hidden leading-none flex items-center"
-          style={{
-            width: `${progress * 100}%`,
-            transition: timer.isRunning ? 'width 1s linear' : 'none',
-          }}
-          aria-hidden="true"
-        >
-          {current.title}
-        </span>
-      </div>
-    </div>
+    <button
+      onClick={() => setTimer((prev) => ({ ...prev, isRunning: !prev.isRunning }))}
+      aria-label={timer.isRunning ? '일시정지' : '타이머 시작'}
+      className="
+        self-stretch aspect-square rounded-full border-2 border-[#1A1A1A]
+        flex items-center justify-center
+        active:bg-[#46E08A] transition-colors
+      "
+    >
+      {timer.isRunning
+        ? <Square size={11} fill="#1A1A1A" strokeWidth={0} />
+        : <Play size={12} fill="#1A1A1A" strokeWidth={0} className="translate-x-px" />
+      }
+    </button>
   );
 }
