@@ -4,7 +4,6 @@ import {
   collection,
   query,
   where,
-  orderBy,
   onSnapshot,
   addDoc,
   updateDoc,
@@ -48,26 +47,41 @@ function MainApp({ user }: { user: User }) {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type: 'error' | 'ok' } | null>(null);
+
+  const showToast = (msg: string, type: 'error' | 'ok' = 'error') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
+    // orderBy 제거 → 복합 인덱스 불필요, 클라이언트에서 정렬
     const q = query(
       questsCol(user.uid),
-      where('done', '==', false),
-      orderBy('order', 'asc')
+      where('done', '==', false)
     );
-    return onSnapshot(q, (snap) => {
-      const list = snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          ...data,
-          createdAt: data.createdAt?.toDate?.() ?? new Date(),
-          scheduledAt: data.scheduledAt?.toDate?.() ?? null,
-        } as Quest;
-      });
-      setQuests(list);
-      setCurrentIndex((prev) => Math.min(prev, Math.max(0, list.length - 1)));
-    });
+    return onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs
+          .map((d) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              ...data,
+              createdAt: data.createdAt?.toDate?.() ?? new Date(),
+              scheduledAt: data.scheduledAt?.toDate?.() ?? null,
+            } as Quest;
+          })
+          .sort((a, b) => a.order - b.order); // 클라이언트 정렬
+        setQuests(list);
+        setCurrentIndex((prev) => Math.min(prev, Math.max(0, list.length - 1)));
+      },
+      (err) => {
+        console.error('Firestore 에러:', err);
+        showToast('데이터 로딩 실패: ' + err.message);
+      }
+    );
   }, [user.uid]);
 
   const handleVoiceInput = async (text: string): Promise<void> => {
@@ -94,14 +108,23 @@ function MainApp({ user }: { user: User }) {
           });
         }
         setPage('home');
+        showToast('퀘스트 추가됐어요!', 'ok');
       } else if (result.action === 'complete') {
         const target = quests[currentIndex];
         if (target) {
           await updateDoc(doc(db, 'users', user.uid, 'quests', target.id), {
             done: true,
           });
+          showToast('완료!', 'ok');
         }
+      } else if (result.action === 'update') {
+        showToast('수정 기능은 Phase 2에서 추가돼요');
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '알 수 없는 오류';
+      console.error('handleVoiceInput 에러:', err);
+      showToast('오류: ' + msg);
+      throw err; // VoiceButton의 에러 UI도 표시
     } finally {
       setIsProcessing(false);
     }
@@ -130,6 +153,7 @@ function MainApp({ user }: { user: User }) {
 
   return (
     <div className="flex flex-col bg-[#F5F0E8]" style={{ height: '100dvh' }}>
+      {/* Processing indicator */}
       {isProcessing && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
           <div className="flex items-center gap-2 bg-white border-[1.5px] border-[#1A1A1A] rounded-full px-4 py-2">
@@ -137,6 +161,21 @@ function MainApp({ user }: { user: User }) {
             <span className="text-[13px] font-medium text-[#1A1A1A]">
               AI가 분석 중이에요
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+          <div
+            className={`
+              flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium
+              border-[1.5px] border-[#1A1A1A]
+              ${toast.type === 'ok' ? 'bg-[#C8B89A] text-[#1A1A1A]' : 'bg-white text-red-500'}
+            `}
+          >
+            {toast.msg}
           </div>
         </div>
       )}
