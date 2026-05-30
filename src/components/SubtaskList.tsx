@@ -3,9 +3,12 @@ import type { Subtask } from '../types/quest';
 interface Props {
   subtasks: Subtask[];
   onToggle: (id: string) => void;
+  timerCurrentId?: string | null;
+  timerProgress?: number;
+  timerRunning?: boolean;
 }
 
-export function SubtaskList({ subtasks, onToggle }: Props) {
+export function SubtaskList({ subtasks, onToggle, timerCurrentId, timerProgress, timerRunning }: Props) {
   const firstUndoneIdx = subtasks.findIndex((s) => !s.done);
 
   return (
@@ -14,6 +17,7 @@ export function SubtaskList({ subtasks, onToggle }: Props) {
         const isDone = task.done;
         const isCurrent = i === firstUndoneIdx;
         const isFuture = !isDone && !isCurrent;
+        const isTimerTarget = task.id === timerCurrentId && !isDone;
 
         return (
           <li
@@ -48,24 +52,42 @@ export function SubtaskList({ subtasks, onToggle }: Props) {
               )}
             </button>
 
-            {/* Bullet for current */}
-            {isCurrent && !isDone && (
+            {/* Bullet for current (only when not timer-target) */}
+            {isCurrent && !isDone && !isTimerTarget && (
               <span
                 className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#1A1A1A] mt-1.5 -ml-0.5"
                 aria-hidden="true"
               />
             )}
 
-            {/* Title */}
-            <span
-              className={`
-                text-[15px] leading-snug flex-1
-                ${isCurrent ? 'font-semibold text-[#1A1A1A]' : 'font-normal'}
-                ${isDone ? 'line-through' : ''}
-              `}
-            >
-              {task.title}
-            </span>
+            {/* Title — karaoke fill when timer is targeting this subtask */}
+            {isTimerTarget ? (
+              <span className="relative flex-1 text-[15px] leading-snug overflow-hidden">
+                {/* Base text (gray) */}
+                <span className="font-semibold text-[#C0C0C0]">{task.title}</span>
+                {/* Overlay (key color, clips left→right) */}
+                <span
+                  className="absolute inset-0 overflow-hidden font-bold text-[#46E08A] whitespace-nowrap"
+                  style={{
+                    width: `${(timerProgress ?? 0) * 100}%`,
+                    transition: timerRunning ? 'width 1s linear' : 'none',
+                  }}
+                  aria-hidden="true"
+                >
+                  {task.title}
+                </span>
+              </span>
+            ) : (
+              <span
+                className={`
+                  text-[15px] leading-snug flex-1
+                  ${isCurrent ? 'font-semibold text-[#1A1A1A]' : 'font-normal'}
+                  ${isDone ? 'line-through' : ''}
+                `}
+              >
+                {task.title}
+              </span>
+            )}
           </li>
         );
       })}

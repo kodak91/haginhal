@@ -87,7 +87,7 @@ export function Home({
 
       {/* Swipeable card area */}
       <div
-        className="flex-1 px-5 overflow-hidden"
+        className="flex-1 px-5 pb-2 overflow-hidden"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -112,7 +112,7 @@ export function Home({
       </div>
 
       {/* Dot pagination */}
-      <div className="flex items-center justify-center gap-2 py-4">
+      <div className="flex items-center justify-center gap-2 pt-3 pb-6">
         {quests.map((_, i) => (
           <button
             key={i}
