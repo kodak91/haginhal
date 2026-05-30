@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  --font-pretendard: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --color-warm-bg: #F5F0E8;
+  --color-warm-card: #FFFFFF;
+  --color-warm-text: #1A1A1A;
+  --color-warm-sub: #9A9A9A;
+  --color-warm-border: #1A1A1A;
+  --color-warm-key: #C8B89A;
+}
+
+*, *::before, *::after {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background-color: #F5F0E8;
+  color: #1A1A1A;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes voice-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+.voice-ring {
+  animation: voice-ring 1.2s ease-out infinite;
+}
+
+@keyframes voice-ring-2 {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.voice-ring-2 {
+  animation: voice-ring-2 1.2s ease-out 0.4s infinite;
+}
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
