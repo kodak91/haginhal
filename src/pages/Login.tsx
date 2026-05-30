@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signInWithRedirect } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { Loader2, ExternalLink } from 'lucide-react';
 
@@ -18,9 +18,23 @@ export function Login() {
     setLoading(true);
     setError('');
     try {
-      await signInWithRedirect(auth, googleProvider);
-      // 페이지가 리디렉션되므로 이후 코드는 실행되지 않음
+      // 팝업 우선 시도 (Safari ITP 우회)
+      await signInWithPopup(auth, googleProvider);
     } catch (e: unknown) {
+      const code = (e as { code?: string }).code ?? '';
+      // 팝업 차단되거나 지원 안 되는 환경이면 리다이렉트로 폴백
+      if (
+        code === 'auth/popup-blocked' ||
+        code === 'auth/popup-closed-by-user' ||
+        code === 'auth/cancelled-popup-request'
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch {
+          // fall through to error display
+        }
+      }
       const msg = e instanceof Error ? e.message : '로그인에 실패했어요';
       setError(msg);
       setLoading(false);
@@ -45,7 +59,6 @@ export function Login() {
       {/* Login area */}
       <div className="w-full max-w-xs flex flex-col gap-3">
         {inApp ? (
-          /* 인앱 브라우저 안내 */
           <div className="bg-white border-2 border-[#1A1A1A] rounded-2xl p-5 text-center">
             <p className="text-[15px] font-bold text-[#1A1A1A] mb-2">
               브라우저에서 열어주세요
@@ -64,7 +77,6 @@ export function Login() {
             </div>
           </div>
         ) : (
-          /* 정상 로그인 버튼 */
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
@@ -74,7 +86,7 @@ export function Login() {
               rounded-full py-4 px-6
               text-[15px] font-semibold
               border-2 border-[#1A1A1A]
-              disabled:opacity-50 transition-opacity
+              disabled:opacity-50
               active:scale-[0.98] transition-transform
             "
           >
