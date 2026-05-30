@@ -90,7 +90,7 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props
       </div>
 
       {/* Fixed footer: complete + timer */}
-      <div className="px-5 pb-5 pt-3 flex items-center gap-3">
+      <div className="px-5 pb-5 pt-3 flex items-stretch gap-3">
         <button
           onClick={onComplete}
           className="

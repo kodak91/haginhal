@@ -115,7 +115,7 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
       onClick={() => setTimer((prev) => ({ ...prev, isRunning: !prev.isRunning }))}
       aria-label={timer.isRunning ? '일시정지' : '타이머 시작'}
       className="
-        self-stretch aspect-square rounded-full border-2 border-[#1A1A1A]
+        shrink-0 self-stretch aspect-square rounded-full border-2 border-[#1A1A1A]
         flex items-center justify-center
         active:bg-[#46E08A] transition-colors
       "
