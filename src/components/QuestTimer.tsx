@@ -35,6 +35,8 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const advancingRef = useRef(false);
+  // Stores the ID of the subtask whose timer just expired — processed in expiration effect
+  const expiredIdRef = useRef<string | null>(null);
   const timerRef = useRef(timer);
   timerRef.current = timer;
 
@@ -46,25 +48,31 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
     onTimerUpdate(timer.currentId, progress, timer.isRunning);
   }, [timer.currentId, timer.remainingSeconds, timer.isRunning]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Tick
+  // Tick — only records expiration; side effects handled separately
   useEffect(() => {
     if (!timer.isRunning) { clearInterval(intervalRef.current); return; }
     intervalRef.current = setInterval(() => {
       setTimer((prev) => {
         if (prev.remainingSeconds > 1) return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
         clearInterval(intervalRef.current);
-        if (prev.currentId) {
-          advancingRef.current = true;
-          playSubtaskComplete();
-          onSubtaskToggle(prev.currentId);
-        }
+        if (prev.currentId) expiredIdRef.current = prev.currentId;
         return { ...prev, isRunning: false, remainingSeconds: 0 };
       });
     }, 1000);
     return () => clearInterval(intervalRef.current);
   }, [timer.isRunning, timer.currentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // React to subtask prop changes
+  // Handle timer expiration: safe to call onSubtaskToggle here (outside updater)
+  useEffect(() => {
+    if (timer.isRunning || timer.remainingSeconds !== 0 || !expiredIdRef.current) return;
+    const id = expiredIdRef.current;
+    expiredIdRef.current = null;
+    advancingRef.current = true;
+    playSubtaskComplete();
+    onSubtaskToggle(id);
+  }, [timer.isRunning, timer.remainingSeconds]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // React to subtask prop changes (advance after completion or sync when paused)
   useEffect(() => {
     const { isRunning, currentId } = timerRef.current;
     if (advancingRef.current) {
@@ -82,6 +90,7 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
       }
       return;
     }
+    // If running but current subtask was manually toggled done
     const current = subtasks.find((s) => s.id === currentId);
     if (isRunning && current?.done) {
       clearInterval(intervalRef.current);
@@ -98,6 +107,7 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
       }
       return;
     }
+    // Sync currentId when paused and first undone changes
     if (!isRunning) {
       const firstId = firstUndoneId(subtasks);
       if (firstId !== currentId) {
@@ -109,7 +119,6 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
 
   if (undone.length === 0 || !timer.currentId) return null;
 
-  // Render: button only (placed in card footer by QuestCard)
   return (
     <button
       onClick={() => setTimer((prev) => ({ ...prev, isRunning: !prev.isRunning }))}

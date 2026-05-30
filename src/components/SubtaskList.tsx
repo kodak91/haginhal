@@ -24,7 +24,7 @@ export function SubtaskList({ subtasks, onToggle, timerCurrentId, timerProgress,
             key={task.id}
             onClick={() => onToggle(task.id)}
             className={`
-              flex items-start gap-3 cursor-pointer select-none
+              flex items-center gap-3 cursor-pointer select-none
               transition-opacity duration-200
               ${isDone || isFuture ? 'opacity-40' : ''}
             `}
@@ -33,7 +33,7 @@ export function SubtaskList({ subtasks, onToggle, timerCurrentId, timerProgress,
             <button
               onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
               className={`
-                mt-0.5 shrink-0 w-5 h-5 rounded-full border-2 border-[#1A1A1A]
+                shrink-0 w-5 h-5 rounded-full border-2 border-[#1A1A1A]
                 flex items-center justify-center transition-colors
                 ${isDone ? 'bg-[#1A1A1A]' : 'bg-transparent'}
               `}
@@ -52,10 +52,10 @@ export function SubtaskList({ subtasks, onToggle, timerCurrentId, timerProgress,
               )}
             </button>
 
-            {/* Bullet for current (only when not timer-target) */}
+            {/* Bullet for current (not shown when timer is active on this item) */}
             {isCurrent && !isDone && !isTimerTarget && (
               <span
-                className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#1A1A1A] mt-1.5 -ml-0.5"
+                className="shrink-0 w-1.5 h-1.5 rounded-full bg-[#1A1A1A]"
                 aria-hidden="true"
               />
             )}
@@ -65,7 +65,7 @@ export function SubtaskList({ subtasks, onToggle, timerCurrentId, timerProgress,
               <span className="relative flex-1 text-[15px] leading-snug overflow-hidden">
                 {/* Base text (gray) */}
                 <span className="font-semibold text-[#C0C0C0]">{task.title}</span>
-                {/* Overlay (key color, clips left→right) */}
+                {/* Overlay clips left → right */}
                 <span
                   className="absolute inset-0 overflow-hidden font-bold text-[#46E08A] whitespace-nowrap"
                   style={{
@@ -86,6 +86,13 @@ export function SubtaskList({ subtasks, onToggle, timerCurrentId, timerProgress,
                 `}
               >
                 {task.title}
+              </span>
+            )}
+
+            {/* Estimated time — faint, right-aligned */}
+            {task.estimatedMinutes != null && (
+              <span className="shrink-0 text-[11px] text-[#C0C0C0]">
+                {task.estimatedMinutes}분
               </span>
             )}
           </li>
