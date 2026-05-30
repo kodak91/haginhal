@@ -247,6 +247,11 @@ function MainApp({ user }: { user: User }) {
     showToast('완료! 잘 했어요 🎉', 'ok');
   };
 
+  const handleEditSave = async (questId: string, title: string, subtasks: Subtask[]) => {
+    await updateDoc(doc(db, 'users', user.uid, 'quests', questId), { title, subtasks });
+    showToast('저장됐어요!', 'ok');
+  };
+
   const handleDefer = async (questId: string) => {
     const maxOrder =
       quests.length > 0 ? Math.max(...quests.map((q) => q.order)) : 0;
@@ -321,7 +326,14 @@ function MainApp({ user }: { user: User }) {
             onComplete={handleComplete}
           />
         )}
-        {page === 'journal' && <Journal quests={quests} completedQuests={completedQuests} />}
+        {page === 'journal' && (
+          <Journal
+            quests={quests}
+            completedQuests={completedQuests}
+            onComplete={handleComplete}
+            onEditSave={handleEditSave}
+          />
+        )}
         {page === 'history' && <History completedQuests={completedQuests} />}
         {page === 'settings' && <Settings />}
       </main>
