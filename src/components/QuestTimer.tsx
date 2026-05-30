@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Square } from 'lucide-react';
 import type { Subtask } from '../types/quest';
 import { playSubtaskComplete, playQuestComplete } from '../lib/audio';
 
@@ -23,12 +23,6 @@ function firstUndoneId(subtasks: Subtask[], afterId?: string): string | null {
   return null;
 }
 
-function fmt(secs: number): string {
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
 export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props) {
   const undone = subtasks.filter((s) => !s.done);
 
@@ -39,7 +33,7 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
   });
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const advancingRef = useRef(false); // true while waiting for Firestore to confirm done
+  const advancingRef = useRef(false);
   const timerRef = useRef(timer);
   timerRef.current = timer;
 
@@ -49,33 +43,28 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
       clearInterval(intervalRef.current);
       return;
     }
-
     intervalRef.current = setInterval(() => {
       setTimer((prev) => {
         if (prev.remainingSeconds > 1) {
           return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
         }
-
-        // Time's up for current subtask
         clearInterval(intervalRef.current);
         if (prev.currentId) {
           advancingRef.current = true;
           playSubtaskComplete();
-          onSubtaskToggle(prev.currentId); // marks done → triggers subtasks prop update
+          onSubtaskToggle(prev.currentId);
         }
         return { ...prev, isRunning: false, remainingSeconds: 0 };
       });
     }, 1000);
-
     return () => clearInterval(intervalRef.current);
   }, [timer.isRunning, timer.currentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── React to subtasks prop changes (Firestore update or manual toggle) ──
+  // ── React to subtask changes ──────────────────────────────────────
   useEffect(() => {
     const { isRunning, currentId } = timerRef.current;
 
     if (advancingRef.current) {
-      // Timer just finished a subtask — advance to next
       advancingRef.current = false;
       const nextId = firstUndoneId(subtasks, currentId ?? undefined);
       if (!nextId) {
@@ -85,17 +74,12 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
       } else {
         const next = subtasks.find((s) => s.id === nextId)!;
         setTimeout(() => {
-          setTimer({
-            isRunning: true,
-            currentId: nextId,
-            remainingSeconds: (next.estimatedMinutes ?? 5) * 60,
-          });
+          setTimer({ isRunning: true, currentId: nextId, remainingSeconds: (next.estimatedMinutes ?? 5) * 60 });
         }, 500);
       }
       return;
     }
 
-    // Manual toggle: if the current running subtask was ticked externally, advance
     const current = subtasks.find((s) => s.id === currentId);
     if (isRunning && current?.done) {
       clearInterval(intervalRef.current);
@@ -107,18 +91,13 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
       } else {
         const next = subtasks.find((s) => s.id === nextId)!;
         setTimeout(() => {
-          setTimer({
-            isRunning: true,
-            currentId: nextId,
-            remainingSeconds: (next.estimatedMinutes ?? 5) * 60,
-          });
+          setTimer({ isRunning: true, currentId: nextId, remainingSeconds: (next.estimatedMinutes ?? 5) * 60 });
         }, 300);
       }
       return;
     }
 
-    // When paused: sync to first undone subtask
-    if (!isRunning && !advancingRef.current) {
+    if (!isRunning) {
       const firstId = firstUndoneId(subtasks);
       if (firstId !== currentId) {
         const first = subtasks.find((s) => s.id === firstId);
@@ -131,16 +110,14 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
     }
   }, [subtasks]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── No undone subtasks → nothing to show ─────────────────────────
-  if (undone.length === 0) return null;
+  // ── No undone subtasks ────────────────────────────────────────────
+  if (undone.length === 0 || !timer.currentId) return null;
 
   const current = subtasks.find((s) => s.id === timer.currentId);
   if (!current) return null;
 
   const totalSeconds = (current.estimatedMinutes ?? 5) * 60;
-  const progress = totalSeconds > 0
-    ? Math.max(0, 1 - timer.remainingSeconds / totalSeconds)
-    : 0;
+  const progress = totalSeconds > 0 ? Math.max(0, 1 - timer.remainingSeconds / totalSeconds) : 0;
 
   const handleToggle = () => {
     if (timer.currentId === null) return;
@@ -148,41 +125,41 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete }: Props
   };
 
   return (
-    <div className="mt-4 rounded-2xl border-2 border-[#1A1A1A] bg-[#F2F2F2] p-4">
-      {/* Current subtask label */}
-      <p className="text-[13px] font-semibold text-[#1A1A1A] mb-2 truncate">
-        {timer.isRunning ? '⏱ ' : '▶ '}{current.title}
-      </p>
-
-      {/* Progress bar + time */}
-      <div className="flex items-center gap-3 mb-3">
-        <div className="flex-1 h-2 bg-white border border-[#E0E0E0] rounded-full overflow-hidden">
-          <div
-            className="h-full bg-[#46E08A] rounded-full transition-all duration-1000"
-            style={{ width: `${progress * 100}%` }}
-          />
-        </div>
-        <span className="text-[13px] font-medium text-[#1A1A1A] tabular-nums shrink-0">
-          {fmt(timer.remainingSeconds)} 남음
-        </span>
-      </div>
-
-      {/* Play / Pause */}
+    <div className="mt-3 flex items-center gap-2.5 px-0.5">
+      {/* ▶ / ■ icon only */}
       <button
         onClick={handleToggle}
+        aria-label={timer.isRunning ? '일시정지' : '타이머 시작'}
         className="
-          w-full flex items-center justify-center gap-2 py-2.5 rounded-full
-          bg-white border-2 border-[#1A1A1A]
-          text-[14px] font-semibold text-[#1A1A1A]
-          active:scale-[0.98] transition-transform
+          shrink-0 w-7 h-7 rounded-full border-2 border-[#1A1A1A]
+          flex items-center justify-center
+          active:bg-[#46E08A] transition-colors
         "
       >
-        {timer.isRunning ? (
-          <><Pause size={15} strokeWidth={2} /> 일시정지</>
-        ) : (
-          <><Play size={15} strokeWidth={2} /> 타이머 시작</>
-        )}
+        {timer.isRunning
+          ? <Square size={10} fill="#1A1A1A" strokeWidth={0} />
+          : <Play size={11} fill="#1A1A1A" strokeWidth={0} className="translate-x-px" />
+        }
       </button>
+
+      {/* Karaoke text: fills left→right as timer progresses */}
+      <div className="flex-1 relative overflow-hidden" style={{ height: '1.1rem' }}>
+        {/* Base layer: unfilled (light) */}
+        <span className="absolute inset-0 text-[12px] font-medium text-[#D0D0D0] whitespace-nowrap leading-none flex items-center">
+          {current.title}
+        </span>
+        {/* Fill layer: clips from left */}
+        <span
+          className="absolute inset-0 text-[12px] font-medium text-[#1A1A1A] whitespace-nowrap overflow-hidden leading-none flex items-center"
+          style={{
+            width: `${progress * 100}%`,
+            transition: timer.isRunning ? 'width 1s linear' : 'none',
+          }}
+          aria-hidden="true"
+        >
+          {current.title}
+        </span>
+      </div>
     </div>
   );
 }
