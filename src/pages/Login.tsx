@@ -1,17 +1,25 @@
 import { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithRedirect } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ExternalLink } from 'lucide-react';
+
+function isInAppBrowser(): boolean {
+  const ua = navigator.userAgent;
+  return /Instagram|KAKAOTALK|Line\/|FBAN|FBAV|Twitter|NaverSearch|DaumMobileApp|wv\)/.test(ua);
+}
 
 export function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const inApp = isInAppBrowser();
 
   const handleGoogleLogin = async () => {
+    if (inApp) return;
     setLoading(true);
     setError('');
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithRedirect(auth, googleProvider);
+      // 페이지가 리디렉션되므로 이후 코드는 실행되지 않음
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '로그인에 실패했어요';
       setError(msg);
@@ -34,28 +42,50 @@ export function Login() {
         </p>
       </div>
 
-      {/* Login button */}
+      {/* Login area */}
       <div className="w-full max-w-xs flex flex-col gap-3">
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="
-            w-full flex items-center justify-center gap-3
-            bg-[#1A1A1A] text-white
-            rounded-full py-4 px-6
-            text-[15px] font-semibold
-            border-2 border-[#1A1A1A]
-            disabled:opacity-50 transition-opacity
-            active:scale-[0.98] transition-transform
-          "
-        >
-          {loading ? (
-            <Loader2 size={18} className="animate-spin" />
-          ) : (
-            <GoogleIcon />
-          )}
-          <span>구글로 시작하기</span>
-        </button>
+        {inApp ? (
+          /* 인앱 브라우저 안내 */
+          <div className="bg-white border-2 border-[#1A1A1A] rounded-2xl p-5 text-center">
+            <p className="text-[15px] font-bold text-[#1A1A1A] mb-2">
+              브라우저에서 열어주세요
+            </p>
+            <p className="text-[13px] text-[#9A9A9A] leading-relaxed mb-4">
+              구글 로그인은 인앱 브라우저를<br />지원하지 않아요.
+            </p>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-[#F2F2F2] rounded-full">
+                <ExternalLink size={14} strokeWidth={1.5} className="text-[#9A9A9A]" />
+                <span className="text-[13px] text-[#9A9A9A]">
+                  주소창에서 <b className="text-[#1A1A1A]">haginhal.vercel.app</b> 직접 입력
+                </span>
+              </div>
+              <p className="text-[12px] text-[#9A9A9A]">또는 우측 하단 ··· → 외부 브라우저로 열기</p>
+            </div>
+          </div>
+        ) : (
+          /* 정상 로그인 버튼 */
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="
+              w-full flex items-center justify-center gap-3
+              bg-[#1A1A1A] text-white
+              rounded-full py-4 px-6
+              text-[15px] font-semibold
+              border-2 border-[#1A1A1A]
+              disabled:opacity-50 transition-opacity
+              active:scale-[0.98] transition-transform
+            "
+          >
+            {loading ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            <span>{loading ? '로그인 중…' : '구글로 시작하기'}</span>
+          </button>
+        )}
 
         {error && (
           <p className="text-[13px] text-red-500 text-center">{error}</p>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { type User, onAuthStateChanged } from 'firebase/auth';
+import { type User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 import {
   collection,
   query,
@@ -353,6 +353,9 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    // signInWithRedirect 후 돌아왔을 때 결과 처리
+    getRedirectResult(auth).catch((e) => console.warn('redirect result:', e));
+
     return onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
