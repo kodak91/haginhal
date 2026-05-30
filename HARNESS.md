@@ -9,18 +9,22 @@
 ### React: setState updater 안에서 side effect 호출 금지
 **현상**: 타이머 만료 시 다음 목록으로 자동 진행이 안 됨  
 **원인**: `setTimer((prev) => { onSubtaskToggle(...); })` — updater 안에서 async 함수 호출  
-**해결**: `expiredIdRef.current = prev.currentId`로만 기록 → 별도 `useEffect`에서 `onSubtaskToggle` 호출  
+**최종 해결**: `setInterval` 콜백에서 직접 호출 + callback ref 패턴으로 stale closure 방지  
 ```ts
 // Wrong
-setTimer(prev => { onSubtaskToggle(prev.currentId); return ... });
+setTimer(prev => { onSubtaskToggle(prev.currentId); return ...; });
 
-// Right
-setTimer(prev => { expiredIdRef.current = prev.currentId; return ...; });
-useEffect(() => {
-  if (!timer.isRunning && timer.remainingSeconds === 0 && expiredIdRef.current) {
-    onSubtaskToggle(expiredIdRef.current); expiredIdRef.current = null;
-  }
-}, [timer.isRunning, timer.remainingSeconds]);
+// Right — interval 콜백에서 직접 호출, ref로 최신 함수 참조
+const onSubtaskToggleRef = useRef(onSubtaskToggle);
+onSubtaskToggleRef.current = onSubtaskToggle; // 매 렌더마다 갱신
+
+setInterval(() => {
+  const t = timerRef.current;
+  if (t.remainingSeconds > 1) { setTimer(prev => ({ ...prev, remainingSeconds: prev.remainingSeconds - 1 })); return; }
+  // 만료
+  setTimer(prev => ({ ...prev, isRunning: false, remainingSeconds: 0 }));
+  onSubtaskToggleRef.current(t.currentId); // updater 밖에서 안전하게 호출
+}, 1000);
 ```
 
 ### TypeScript: Props 완전 일치 필수
@@ -47,12 +51,26 @@ stopListening() → isListeningRef = false → rec.stop()
 **침묵 자동 종료가 필요한 경우**: silence timer를 `onresult`마다 리셋하되, 타이머 발동 시 `isListeningRef = false` 후 `rec.stop()`. 단, rapid restart 루프가 생길 수 있으므로 UX 검증 필요.
 
 ### Flex 버튼 원형 유지
-**현상**: `aspect-square` 버튼의 가로폭이 좁아져 타원 형태  
-**원인**: flex 컨테이너에서 `shrink` 적용, 또는 `items-center`로 `self-stretch` 무력화  
+**현상**: `aspect-square` 버튼의 가로폭이 좁아져 타원 형태 / 화면 밖으로 삐져나감  
+**원인**: flex 컨테이너에서 `shrink` 적용, 또는 인접 요소가 최소 너비 유지  
 **해결**:
-- 버튼에 `shrink-0` 추가
-- 부모 컨테이너를 `items-stretch`로 변경
-- 또는 명시적 `w-N h-N` 고정 크기 사용
+- 원형 버튼: `shrink-0` + `w-N h-N` 명시 (또는 `self-stretch aspect-square`)
+- 인접 flex-1 요소: `min-w-0` 추가 → 내용 크기 이하로 수축 허용
+- 부모: `items-stretch` (타이머처럼 높이 맞춰야 할 때) 또는 `items-center` (고정 크기 버튼일 때)
+
+```tsx
+// 모달 input 행 예시
+<div className="flex items-center gap-2">
+  <input className="flex-1 min-w-0 ..." />          {/* min-w-0 필수 */}
+  <button className="shrink-0 w-11 h-11 rounded-full ..." />
+</div>
+
+// 카드 footer 예시
+<div className="flex items-stretch gap-3">
+  <button className="flex-1 min-w-0 py-3.5 rounded-full ...">완료</button>
+  <button className="shrink-0 self-stretch aspect-square rounded-full ...">▶</button>
+</div>
+```
 
 ---
 
