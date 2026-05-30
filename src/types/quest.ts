@@ -2,6 +2,7 @@ export interface Subtask {
   id: string;
   title: string;
   done: boolean;
+  estimatedMinutes?: number;
 }
 
 export interface Quest {
@@ -19,6 +20,11 @@ export interface Quest {
   completedAt?: Date;
 }
 
+export interface AISubtaskItem {
+  title: string;
+  estimatedMinutes: number;
+}
+
 export type AIResponse =
   | {
       action: 'create';
@@ -28,8 +34,14 @@ export type AIResponse =
         timeOfDay: '오전' | '오후' | '저녁' | '미정';
         estimatedMinutes: number;
         priority: 'high' | 'medium' | 'low';
-        subtasks: string[];
+        subtasks: AISubtaskItem[];
       }>;
     }
   | { action: 'update'; instruction: string }
-  | { action: 'complete'; target: string };
+  | { action: 'complete'; target: string }
+  | {
+      action: 'rearrange';
+      updates: Array<{ id: string; timeOfDay?: '오전' | '오후' | '저녁' | '미정'; order?: number }>;
+    }
+  | { action: 'delete'; targetId: string }
+  | { action: 'resubtask'; targetId: string; subtasks: AISubtaskItem[] };

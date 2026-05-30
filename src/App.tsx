@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { type User, onAuthStateChanged } from 'firebase/auth';
 import {
   collection,
@@ -7,18 +7,22 @@ import {
   onSnapshot,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   serverTimestamp,
+  setDoc,
 } from 'firebase/firestore';
 import { auth, db } from './lib/firebase';
 import { processVoiceInput } from './lib/claude';
-import type { AIResponse, Quest, Subtask } from './types/quest';
+import { requestNotificationPermission, initFCM, scheduleQuestNotification } from './lib/fcm';
+import type { AIResponse, AISubtaskItem, Quest, Subtask } from './types/quest';
 import { Login } from './pages/Login';
 import { Home } from './pages/Home';
 import { Journal } from './pages/Journal';
 import { History } from './pages/History';
 import { BottomNav } from './components/BottomNav';
 import type { Page } from './components/BottomNav';
+import { NotificationPermissionModal } from './components/NotificationPermissionModal';
 import { Loader2 } from 'lucide-react';
 
 function Settings() {
@@ -30,12 +34,24 @@ function Settings() {
   );
 }
 
-function makeSubtasks(titles: string[]): Subtask[] {
-  return titles.map((title) => ({
+function makeSubtasks(items: AISubtaskItem[]): Subtask[] {
+  return items.map((item) => ({
     id: crypto.randomUUID(),
-    title,
+    title: item.title,
     done: false,
+    estimatedMinutes: item.estimatedMinutes,
   }));
+}
+
+function computeScheduledAt(timeOfDay: Quest['timeOfDay']): Date | null {
+  const hours: Record<string, number | null> = {
+    '오전': 9, '오후': 14, '저녁': 19, '미정': null,
+  };
+  const hour = hours[timeOfDay];
+  if (hour === null) return null;
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
+  return d.getTime() > now.getTime() ? d : null;
 }
 
 function questsCol(uid: string) {
@@ -49,18 +65,21 @@ function MainApp({ user }: { user: User }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'error' | 'ok' } | null>(null);
+  const [showNotifModal, setShowNotifModal] = useState(false);
+
+  // Track scheduled notification timeouts (questId → timeoutId)
+  const scheduledNotifs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const questsRef = useRef(quests);
+  questsRef.current = quests;
 
   const showToast = (msg: string, type: 'error' | 'ok' = 'error') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Active quests listener
   useEffect(() => {
-    // orderBy 제거 → 복합 인덱스 불필요, 클라이언트에서 정렬
-    const q = query(
-      questsCol(user.uid),
-      where('done', '==', false)
-    );
+    const q = query(questsCol(user.uid), where('done', '==', false));
     return onSnapshot(
       q,
       (snap) => {
@@ -74,7 +93,7 @@ function MainApp({ user }: { user: User }) {
               scheduledAt: data.scheduledAt?.toDate?.() ?? null,
             } as Quest;
           })
-          .sort((a, b) => a.order - b.order); // 클라이언트 정렬
+          .sort((a, b) => a.order - b.order);
         setQuests(list);
         setCurrentIndex((prev) => Math.min(prev, Math.max(0, list.length - 1)));
       },
@@ -112,14 +131,19 @@ function MainApp({ user }: { user: User }) {
   const handleVoiceInput = async (text: string): Promise<void> => {
     setIsProcessing(true);
     try {
-      const result: AIResponse = await processVoiceInput(text);
+      const result: AIResponse = await processVoiceInput(text, questsRef.current);
 
       if (result.action === 'create') {
+        const isFirstQuest = questsRef.current.length === 0;
         const maxOrder =
-          quests.length > 0 ? Math.max(...quests.map((q) => q.order)) : 0;
+          questsRef.current.length > 0
+            ? Math.max(...questsRef.current.map((q) => q.order))
+            : 0;
+
         for (let i = 0; i < result.quests.length; i++) {
           const q = result.quests[i];
-          await addDoc(questsCol(user.uid), {
+          const scheduledAt = computeScheduledAt(q.timeOfDay);
+          const ref = await addDoc(questsCol(user.uid), {
             title: q.title,
             category: q.category,
             timeOfDay: q.timeOfDay,
@@ -129,21 +153,72 @@ function MainApp({ user }: { user: User }) {
             done: false,
             order: maxOrder + i + 1,
             createdAt: serverTimestamp(),
-            scheduledAt: null,
+            scheduledAt: scheduledAt ?? null,
           });
+
+          // Schedule local notification
+          if (scheduledAt && Notification.permission === 'granted') {
+            const tid = scheduleQuestNotification(
+              { id: ref.id, title: q.title, scheduledAt } as Quest,
+              () => questsRef.current.length
+            );
+            if (tid) scheduledNotifs.current.set(ref.id, tid);
+          }
         }
+
         setPage('home');
         showToast('퀘스트 추가됐어요!', 'ok');
+
+        // Show notification permission modal after first quest (once)
+        if (isFirstQuest && !localStorage.getItem('notifAsked')) {
+          setTimeout(() => setShowNotifModal(true), 600);
+        }
+
+      } else if (result.action === 'rearrange') {
+        for (const update of result.updates) {
+          const fields: Record<string, unknown> = {};
+          if (update.timeOfDay) {
+            fields.timeOfDay = update.timeOfDay;
+            const newScheduledAt = computeScheduledAt(update.timeOfDay);
+            fields.scheduledAt = newScheduledAt ?? null;
+          }
+          if (update.order !== undefined) fields.order = update.order;
+          if (Object.keys(fields).length > 0) {
+            await updateDoc(doc(db, 'users', user.uid, 'quests', update.id), fields);
+          }
+        }
+        showToast('재배치했어요!', 'ok');
+
+      } else if (result.action === 'delete') {
+        clearTimeout(scheduledNotifs.current.get(result.targetId));
+        scheduledNotifs.current.delete(result.targetId);
+        await deleteDoc(doc(db, 'users', user.uid, 'quests', result.targetId));
+        setCurrentIndex((prev) => Math.max(0, prev - 1));
+        showToast('삭제했어요', 'ok');
+
+      } else if (result.action === 'resubtask') {
+        const newSubtasks = result.subtasks.map((s) => ({
+          id: crypto.randomUUID(),
+          title: s.title,
+          done: false,
+          estimatedMinutes: s.estimatedMinutes,
+        }));
+        await updateDoc(doc(db, 'users', user.uid, 'quests', result.targetId), {
+          subtasks: newSubtasks,
+        });
+        showToast('세부 미션 재구성했어요!', 'ok');
+
       } else if (result.action === 'complete') {
         await handleComplete(quests[currentIndex]?.id ?? '');
+
       } else if (result.action === 'update') {
-        showToast('수정 기능은 Phase 2에서 추가돼요');
+        showToast('수정 기능은 음성으로도 가능해요 — 다시 시도해 보세요');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '알 수 없는 오류';
       console.error('handleVoiceInput 에러:', err);
       showToast('오류: ' + msg);
-      throw err; // VoiceButton의 에러 UI도 표시
+      throw err;
     } finally {
       setIsProcessing(false);
     }
@@ -163,11 +238,13 @@ function MainApp({ user }: { user: User }) {
 
   const handleComplete = async (questId: string) => {
     if (!questId) return;
+    clearTimeout(scheduledNotifs.current.get(questId));
+    scheduledNotifs.current.delete(questId);
     await updateDoc(doc(db, 'users', user.uid, 'quests', questId), {
       done: true,
       completedAt: serverTimestamp(),
     });
-    showToast('완료! 잘 했어요', 'ok');
+    showToast('완료! 잘 했어요 🎉', 'ok');
   };
 
   const handleDefer = async (questId: string) => {
@@ -177,6 +254,23 @@ function MainApp({ user }: { user: User }) {
       order: maxOrder + 1000,
     });
     setCurrentIndex((prev) => Math.min(prev, Math.max(0, quests.length - 2)));
+  };
+
+  const handleNotifAllow = async () => {
+    setShowNotifModal(false);
+    localStorage.setItem('notifAsked', 'true');
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      await initFCM(user.uid);
+      // Save notification preference to Firestore
+      await setDoc(doc(db, 'users', user.uid), { notifEnabled: true }, { merge: true });
+      showToast('알림이 설정됐어요!', 'ok');
+    }
+  };
+
+  const handleNotifLater = () => {
+    setShowNotifModal(false);
+    localStorage.setItem('notifAsked', 'true');
   };
 
   return (
@@ -208,6 +302,14 @@ function MainApp({ user }: { user: User }) {
         </div>
       )}
 
+      {/* Notification permission modal */}
+      {showNotifModal && (
+        <NotificationPermissionModal
+          onAllow={() => void handleNotifAllow()}
+          onLater={handleNotifLater}
+        />
+      )}
+
       <main className="flex-1 overflow-hidden pb-16">
         {page === 'home' && (
           <Home
@@ -228,6 +330,7 @@ function MainApp({ user }: { user: User }) {
         currentPage={page}
         onNavigate={setPage}
         onVoiceInput={handleVoiceInput}
+        hasQuests={quests.length > 0}
       />
     </div>
   );

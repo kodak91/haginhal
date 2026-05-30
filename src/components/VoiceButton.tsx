@@ -3,20 +3,21 @@ import { Mic, Loader2, Send, X } from 'lucide-react';
 import type { ISpeechRecognition } from '../lib/speech';
 import { createRecognition } from '../lib/speech';
 
-const MAX_RECORD_MS = 30_000; // 30초
+const MAX_RECORD_MS = 30_000;
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'error';
 
 interface Props {
   onInput: (text: string) => Promise<void>;
+  hasQuests?: boolean;
 }
 
-export function VoiceButton({ onInput }: Props) {
+export function VoiceButton({ onInput, hasQuests = false }: Props) {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [modalOpen, setModalOpen] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [elapsed, setElapsed] = useState(0); // 녹음 경과 초
+  const [elapsed, setElapsed] = useState(0);
 
   const pressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const autoStopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -25,7 +26,6 @@ export function VoiceButton({ onInput }: Props) {
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const transcriptRef = useRef('');
 
-  /* ── Submit ─────────────────────────────────────────────────── */
   const submitText = async (text: string): Promise<void> => {
     setVoiceState('processing');
     setModalOpen(false);
@@ -41,7 +41,6 @@ export function VoiceButton({ onInput }: Props) {
     }
   };
 
-  /* ── Timers ─────────────────────────────────────────────────── */
   const startTick = () => {
     setElapsed(0);
     tickTimer.current = setInterval(() => setElapsed((s) => s + 1), 1000);
@@ -53,7 +52,6 @@ export function VoiceButton({ onInput }: Props) {
     setElapsed(0);
   };
 
-  /* ── Voice ──────────────────────────────────────────────────── */
   const startListening = () => {
     const rec = createRecognition();
     if (!rec) { setModalOpen(true); return; }
@@ -63,13 +61,11 @@ export function VoiceButton({ onInput }: Props) {
     setVoiceState('listening');
     startTick();
 
-    // 30초 자동 종료
     autoStopTimer.current = setTimeout(() => {
       recognitionRef.current?.stop();
     }, MAX_RECORD_MS);
 
     rec.onresult = (e) => {
-      // continuous 모드: 발화 단위로 쌓아서 합산
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) {
           transcriptRef.current += e.results[i][0].transcript;
@@ -85,11 +81,8 @@ export function VoiceButton({ onInput }: Props) {
     rec.onend = () => {
       clearTimers();
       const t = transcriptRef.current.trim();
-      if (t) {
-        void submitText(t);
-      } else {
-        setVoiceState('idle');
-      }
+      if (t) void submitText(t);
+      else setVoiceState('idle');
     };
 
     rec.start();
@@ -98,10 +91,8 @@ export function VoiceButton({ onInput }: Props) {
   const stopListening = () => {
     clearTimers();
     recognitionRef.current?.stop();
-    // onend에서 transcript 처리
   };
 
-  /* ── Press handling ─────────────────────────────────────────── */
   const handlePressStart = () => {
     if (voiceState !== 'idle') return;
     isLongPress.current = false;
@@ -121,7 +112,6 @@ export function VoiceButton({ onInput }: Props) {
     }
   };
 
-  /* ── Icon / label ───────────────────────────────────────────── */
   const icon =
     voiceState === 'processing' ? (
       <Loader2 size={26} className="animate-spin" strokeWidth={1.5} />
@@ -130,6 +120,14 @@ export function VoiceButton({ onInput }: Props) {
     ) : (
       <Mic size={26} strokeWidth={1.5} />
     );
+
+  const modalPlaceholder = hasQuests
+    ? '예: 보고서를 오후로 옮겨줘'
+    : '예: 내일까지 보고서 작성하기';
+
+  const modalHint = hasQuests
+    ? '할일 추가 또는 수정 지시를 입력하세요'
+    : '할일을 입력해 주세요';
 
   return (
     <>
@@ -185,7 +183,7 @@ export function VoiceButton({ onInput }: Props) {
         >
           <div className="w-full max-w-lg bg-white border-t-2 border-[#1A1A1A] rounded-t-3xl p-5 pb-10">
             <div className="w-10 h-1 bg-[#E0E0E0] rounded-full mx-auto mb-5" />
-            <p className="text-[13px] text-[#9A9A9A] mb-3">할일을 입력해 주세요</p>
+            <p className="text-[13px] text-[#9A9A9A] mb-3">{modalHint}</p>
             <div className="flex gap-2">
               <input
                 autoFocus
@@ -193,7 +191,7 @@ export function VoiceButton({ onInput }: Props) {
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && textInput.trim()) void submitText(textInput.trim()); }}
-                placeholder="예: 내일까지 보고서 작성하기"
+                placeholder={modalPlaceholder}
                 className="
                   flex-1 border-2 border-[#1A1A1A] rounded-full
                   px-4 py-2.5 text-[15px] outline-none bg-[#F2F2F2]

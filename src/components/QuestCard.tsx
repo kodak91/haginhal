@@ -1,6 +1,7 @@
 import { MapPin, Clock, Zap, ChevronRight } from 'lucide-react';
 import type { Quest } from '../types/quest';
 import { SubtaskList } from './SubtaskList';
+import { QuestTimer } from './QuestTimer';
 
 const CATEGORY_ICON = { '실내': '🏠', '외출': '🚶' };
 const TIME_LABEL = { '오전': '오전', '오후': '오후', '저녁': '저녁', '미정': '미정' };
@@ -41,7 +42,6 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props
       <div className="flex flex-col flex-1 p-5 overflow-y-auto scrollbar-hide">
         {/* Header row */}
         <div className="flex items-start justify-between gap-3 mb-3">
-          {/* Tags */}
           <div className="flex flex-wrap gap-1.5">
             <Tag className="bg-[#F2F2F2] text-[#1A1A1A]">
               <span>{CATEGORY_ICON[quest.category]}</span>
@@ -61,7 +61,6 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props
             </Tag>
           </div>
 
-          {/* Defer button */}
           <button
             onClick={onDefer}
             className="
@@ -93,18 +92,27 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props
           <SubtaskList subtasks={quest.subtasks} onToggle={onSubtaskToggle} />
         )}
 
-        {/* Empty subtasks state */}
         {quest.subtasks.length === 0 && (
           <div className="flex-1 flex items-center justify-center text-[#9A9A9A] text-[14px]">
             세부 단계가 없어요
           </div>
         )}
 
+        {/* Auto timer */}
+        {quest.subtasks.length > 0 && (
+          <QuestTimer
+            key={quest.id}
+            subtasks={quest.subtasks}
+            onSubtaskToggle={onSubtaskToggle}
+            onQuestComplete={onComplete}
+          />
+        )}
+
         {/* Complete button */}
         <button
           onClick={onComplete}
           className="
-            mt-5 w-full py-3.5 rounded-full
+            mt-4 w-full py-3.5 rounded-full
             bg-[#1A1A1A] text-white
             text-[15px] font-semibold tracking-wide
             border-2 border-[#1A1A1A]

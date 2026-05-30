@@ -29,9 +29,10 @@ interface Props {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onVoiceInput: (text: string) => Promise<void>;
+  hasQuests?: boolean;
 }
 
-export function BottomNav({ currentPage, onNavigate, onVoiceInput }: Props) {
+export function BottomNav({ currentPage, onNavigate, onVoiceInput, hasQuests = false }: Props) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#F2F2F2] border-t-2 border-[#1A1A1A]">
       <div className="relative flex items-center justify-around px-2 h-16">
@@ -50,7 +51,7 @@ export function BottomNav({ currentPage, onNavigate, onVoiceInput }: Props) {
 
         {/* Center voice button — elevated */}
         <div className="relative -mt-8">
-          <VoiceButton onInput={onVoiceInput} />
+          <VoiceButton onInput={onVoiceInput} hasQuests={hasQuests} />
         </div>
 
         <NavItem
