@@ -125,7 +125,53 @@ stopListening() → isListeningRef = false → rec.stop()
 
 ---
 
-## 4. 스택 & 환경
+## 4. AI 설계 (Phase 2.5)
+
+### 문제 → 해결 요약
+| 기존 문제 | 해결 |
+|-----------|------|
+| `update` 액션 미구현 (토스트만) | `update` 핸들러 추가 — title/location/timeOfDay/priority 수정 |
+| `category: 실내\|외출` (너무 단순) | `location: 집\|회사\|학교\|밖\|어디서든` 추가 |
+| AI 컨텍스트 빈약 (id/title만) | index·subtaskCount·doneCount·estimatedMinutes 전달 |
+| "첫 번째 할일" 참조 불가 | currentQuests에 index 번호 포함 |
+| 세부항목 하나 추가 불가 | `add_subtask` 액션 신규 추가 |
+
+### location 필드
+```
+'집' | '회사' | '학교' | '밖' | '어디서든'
+```
+- 기존 `category` 필드는 하위호환으로 유지 (`locationToCategory()` 파생 저장)
+- 신규 퀘스트: `location` 메인 + `category` 파생값 함께 저장
+- QuestCard: `quest.location ?? quest.category` 로 표시
+
+### AI 액션 전체 목록
+| 액션 | 용도 |
+|------|------|
+| `create` | 신규 퀘스트 생성 |
+| `update` | 단일 퀘스트 title/location/timeOfDay/priority 수정 |
+| `rearrange` | 여러 퀘스트 순서·시간대 일괄 변경 |
+| `resubtask` | 세부목록 전체 교체 |
+| `add_subtask` | 기존 퀘스트에 세부항목 하나 추가 |
+| `delete` | 삭제 |
+| `complete` | 완료 처리 |
+
+### currentQuests 전달 구조 (api/claude.ts)
+```json
+{ "index": 1, "id": "...", "title": "...", "location": "밖",
+  "timeOfDay": "오후", "priority": "medium",
+  "subtaskCount": 3, "doneCount": 1, "estimatedMinutes": 30 }
+```
+
+### 금기 (AI 관련 추가)
+| 금지 | 이유 |
+|------|------|
+| `rearrange`에 title/priority 변경 포함 | 순서·시간대 전용, 필드 수정은 `update` 사용 |
+| `category` 단독 저장 | `location`과 함께, category는 파생값 |
+| `update.changes`에 빈 객체 | 변경할 필드가 없으면 update 생략 |
+
+---
+
+## 5. 스택 & 환경
 
 ```
 Frontend   : React 19, Vite 8, TypeScript 6 (verbatimModuleSyntax)

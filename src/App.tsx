@@ -16,7 +16,7 @@ import {
 import { auth, db } from './lib/firebase';
 import { processVoiceInput } from './lib/claude';
 import { requestNotificationPermission, initFCM, scheduleQuestNotification } from './lib/fcm';
-import type { AIResponse, AISubtaskItem, Quest, Subtask } from './types/quest';
+import type { AIResponse, AISubtaskItem, Quest, QuestLocation, Subtask } from './types/quest';
 import { Login } from './pages/Login';
 import { Home } from './pages/Home';
 import { Journal } from './pages/Journal';
@@ -33,6 +33,11 @@ function Settings() {
       <p className="text-[14px] text-[#9A9A9A]">Phase 3에서 만나요</p>
     </div>
   );
+}
+
+/** location → 레거시 category 파생 (Firestore 하위호환) */
+function locationToCategory(location: QuestLocation): '실내' | '외출' {
+  return ['밖', '회사', '학교'].includes(location) ? '외출' : '실내';
 }
 
 function makeSubtasks(items: AISubtaskItem[]): Subtask[] {
@@ -146,7 +151,8 @@ function MainApp({ user }: { user: User }) {
           const scheduledAt = computeScheduledAt(q.timeOfDay);
           const ref = await addDoc(questsCol(user.uid), {
             title: q.title,
-            category: q.category,
+            location: q.location,
+            category: locationToCategory(q.location), // 하위호환
             timeOfDay: q.timeOfDay,
             estimatedMinutes: q.estimatedMinutes,
             priority: q.priority,
@@ -213,7 +219,37 @@ function MainApp({ user }: { user: User }) {
         await handleComplete(quests[currentIndex]?.id ?? '');
 
       } else if (result.action === 'update') {
-        showToast('수정 기능은 음성으로도 가능해요 — 다시 시도해 보세요');
+        const { targetId, changes } = result;
+        const fields: Record<string, unknown> = {};
+        if (changes.title) fields.title = changes.title;
+        if (changes.location) {
+          fields.location = changes.location;
+          fields.category = locationToCategory(changes.location);
+        }
+        if (changes.timeOfDay) {
+          fields.timeOfDay = changes.timeOfDay;
+          fields.scheduledAt = computeScheduledAt(changes.timeOfDay) ?? null;
+        }
+        if (changes.priority) fields.priority = changes.priority;
+        if (Object.keys(fields).length > 0) {
+          await updateDoc(doc(db, 'users', user.uid, 'quests', targetId), fields);
+          showToast('수정했어요!', 'ok');
+        }
+
+      } else if (result.action === 'add_subtask') {
+        const quest = questsRef.current.find((q) => q.id === result.targetId);
+        if (quest) {
+          const newSubtask: Subtask = {
+            id: crypto.randomUUID(),
+            title: result.subtask.title,
+            done: false,
+            estimatedMinutes: result.subtask.estimatedMinutes,
+          };
+          await updateDoc(doc(db, 'users', user.uid, 'quests', result.targetId), {
+            subtasks: [...quest.subtasks, newSubtask],
+          });
+          showToast('세부 항목 추가했어요!', 'ok');
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '알 수 없는 오류';

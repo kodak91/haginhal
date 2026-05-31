@@ -2,6 +2,36 @@
 
 ---
 
+## Phase 2.5 — 세션 3 (2026-05-31)
+
+### AI 비서/PM 기능 개편
+
+#### 데이터 모델
+- **quest.ts**: `location: '집'|'회사'|'학교'|'밖'|'어디서든'` 필드 추가
+  - 기존 `category: 실내|외출` 는 Firestore 하위호환으로 유지 (`locationToCategory()` 파생 저장)
+  - `QuestCard.tsx`: `quest.location ?? quest.category` 로 표시
+
+#### AI 액션 확장 (api/claude.ts)
+- **`update` 구현**: title·location·timeOfDay·priority 단일 수정 (기존엔 토스트만 뜨고 미구현이었음)
+- **`add_subtask` 추가**: 기존 퀘스트에 세부항목 하나 추가
+- `create` 액션: `category` → `location` 기반으로 변경
+
+#### 시스템 프롬프트 개편 (api/claude.ts)
+- location 개념 추가 (집/회사/학교/밖/어디서든)
+- 현재 시각(오전/오후/저녁) 자동 포함 (KST)
+- PM 판단 기준 추가 (이동 효율, 시간 과부하 분산)
+- 마크다운 코드블록 없이 반환 명시
+
+#### 컨텍스트 강화 (src/lib/claude.ts)
+- 기존: `{ id, title, timeOfDay, priority }`
+- 변경: `{ index, id, title, location, timeOfDay, priority, subtaskCount, doneCount, estimatedMinutes }`
+- "첫 번째 할일", "2번 퀘스트" 등 자연어 참조 가능
+
+#### 문서
+- **HARNESS.md**: Phase 2.5 AI 설계 섹션 추가
+
+---
+
 ## Phase 2 — 세션 2 (2026-05-31)
 
 ### 타이머 핵심 버그 수정

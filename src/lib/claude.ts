@@ -9,11 +9,16 @@ export async function processVoiceInput(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       text,
-      currentQuests: currentQuests.map((q) => ({
+      currentQuests: currentQuests.map((q, i) => ({
+        index: i + 1,
         id: q.id,
         title: q.title,
+        location: q.location ?? (q.category === '외출' ? '밖' : '집'),
         timeOfDay: q.timeOfDay,
         priority: q.priority,
+        subtaskCount: q.subtasks.length,
+        doneCount: q.subtasks.filter((s) => s.done).length,
+        estimatedMinutes: q.estimatedMinutes,
       })),
     }),
   });

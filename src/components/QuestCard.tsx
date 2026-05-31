@@ -25,8 +25,10 @@ export function QuestCard({ quest, onSubtaskToggle, onDefer, onComplete }: Props
     isRunning: boolean;
   }>({ currentId: null, progress: 0, isRunning: false });
 
+  const locationLabel = quest.location ?? quest.category;
+
   const metaTags = [
-    quest.category,
+    locationLabel,
     TIME_LABEL[quest.timeOfDay],
     `${quest.estimatedMinutes}분`,
     PRIORITY_LABEL[quest.priority],
