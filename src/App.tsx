@@ -17,6 +17,7 @@ import { auth, db } from './lib/firebase';
 import { processVoiceInput } from './lib/claude';
 import { requestNotificationPermission, initFCM, scheduleQuestNotification } from './lib/fcm';
 import type { AIResponse, AISubtaskItem, Quest, QuestLocation, Subtask } from './types/quest';
+import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Home } from './pages/Home';
 import { Journal } from './pages/Journal';
@@ -414,6 +415,7 @@ function MainApp({ user }: { user: User }) {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     // signInWithRedirect 후 돌아왔을 때 결과 처리
@@ -436,5 +438,11 @@ export default function App() {
     );
   }
 
-  return user ? <MainApp user={user} /> : <Login />;
+  if (!user) {
+    return showLogin
+      ? <Login />
+      : <Landing onStart={() => setShowLogin(true)} />;
+  }
+
+  return <MainApp user={user} />;
 }
