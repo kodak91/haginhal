@@ -37,7 +37,6 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
   });
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const advancingRef = useRef(false);
   const timerRef = useRef(timer);
   timerRef.current = timer;
 
@@ -51,12 +50,18 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
   const subtasksRef = useRef(subtasks);
   subtasksRef.current = subtasks;
 
+  // Tracks the subtask ID that the timer just expired on.
+  // Cleared only once the subtask is confirmed done in the Firestore snapshot.
+  // More reliable than a boolean flag (advancingRef) which could be consumed
+  // before the Firestore round-trip completes.
+  const expiredIdRef = useRef<string | null>(null);
+
   // Notify parent every tick for karaoke fill
   useEffect(() => {
     const current = subtasks.find((s) => s.id === timer.currentId);
     const totalSeconds = (current?.estimatedMinutes ?? 5) * 60;
     const progress = totalSeconds > 0 ? Math.max(0, 1 - timer.remainingSeconds / totalSeconds) : 0;
-    onTimerUpdate(timer.currentId, progress, timer.isRunning);
+    onTimerUpdateRef.current(timer.currentId, progress, timer.isRunning);
   }, [timer.currentId, timer.remainingSeconds, timer.isRunning]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Helper: advance timer to next undone subtask (or finish quest)
@@ -77,7 +82,7 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
     }
   });
 
-  // Tick — calls onSubtaskToggle directly in interval (not inside setState updater)
+  // Tick
   useEffect(() => {
     if (!timer.isRunning) { clearInterval(intervalRef.current); return; }
 
@@ -90,11 +95,11 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
         return;
       }
 
-      // Expired — stop timer, mark subtask done, advance
+      // Timer expired — stop, mark done, wait for Firestore confirmation
       clearInterval(intervalRef.current);
       const expiredId = t.currentId;
       setTimer((prev) => ({ ...prev, isRunning: false, remainingSeconds: 0 }));
-      advancingRef.current = true;
+      expiredIdRef.current = expiredId;   // advance happens in subtasks effect
       playSubtaskComplete();
       onSubtaskToggleRef.current(expiredId);
     }, 1000);
@@ -102,17 +107,23 @@ export function QuestTimer({ subtasks, onSubtaskToggle, onQuestComplete, onTimer
     return () => clearInterval(intervalRef.current);
   }, [timer.isRunning, timer.currentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // React to subtask prop changes: advance after completion, or sync when paused
+  // React to subtask prop changes
   useEffect(() => {
     const { isRunning, currentId } = timerRef.current;
 
-    if (advancingRef.current) {
-      advancingRef.current = false;
-      advanceTo.current(firstUndoneId(subtasks, currentId ?? undefined));
+    // Timer expiry: advance only after Firestore confirms the subtask is done
+    if (expiredIdRef.current !== null) {
+      const expiredId = expiredIdRef.current;
+      const task = subtasks.find((s) => s.id === expiredId);
+      if (task?.done) {
+        expiredIdRef.current = null;
+        advanceTo.current(firstUndoneId(subtasks, expiredId));
+      }
+      // Not confirmed yet — wait for next subtasks update
       return;
     }
 
-    // Current subtask was manually checked done while timer was running
+    // Current subtask was manually checked while timer was running
     const current = subtasks.find((s) => s.id === currentId);
     if (isRunning && current?.done) {
       clearInterval(intervalRef.current);

@@ -43,10 +43,18 @@ export function scheduleQuestNotification(
   if (delay <= 0) return null;
 
   return setTimeout(() => {
+    // 포그라운드에서 로컬 알림 발생 시 직접 사운드 재생
+    try {
+      const alarm = new Audio('/app_alarm.wav');
+      alarm.play().catch(() => {});
+    } catch { /* autoplay 차단 무시 */ }
+
     new Notification('하긴해야할 시간입니다!', {
       body: `${quest.title} • 남은 퀘스트 ${getActiveCount()}개`,
-      icon: '/icons/icon-192.png',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       tag: `quest-${quest.id}`,
-    });
+      silent: false,
+    } as NotificationOptions);
   }, delay);
 }

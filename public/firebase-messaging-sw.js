@@ -13,9 +13,11 @@ self.addEventListener('push', (event) => {
     const title = data.notification?.title ?? '하긴해야할 시간입니다!';
     const options = {
       body: data.notification?.body ?? '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       tag: data.data?.questId,
+      sound: '/app_alarm.wav',  // Android Chrome 지원 (iOS는 OS 기본음)
+      vibrate: [200, 100, 200],
     };
     event.waitUntil(self.registration.showNotification(title, options));
   } catch {
