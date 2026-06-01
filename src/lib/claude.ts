@@ -1,14 +1,16 @@
-import type { AIResponse, Quest } from '../types/quest';
+import type { AIResponse, Quest, QuestSettings } from '../types/quest';
 
 export async function processVoiceInput(
   text: string,
-  currentQuests: Quest[] = []
+  currentQuests: Quest[] = [],
+  questSettings?: QuestSettings
 ): Promise<AIResponse> {
   const response = await fetch('/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       text,
+      questSettings: questSettings ?? null,
       currentQuests: currentQuests.map((q, i) => ({
         index: i + 1,
         id: q.id,

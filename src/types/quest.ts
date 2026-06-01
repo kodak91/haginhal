@@ -1,3 +1,14 @@
+export type CurrentStatus = '' | '직장인' | '프리랜서' | '학생' | '쉬는 중' | '교대근무';
+
+export interface QuestSettings {
+  itemsToCarry: string;
+  prepTime: string;
+  outingRoutine: string;
+  morningRoutine: string;
+  eveningRoutine: string;
+  currentStatus: CurrentStatus;
+}
+
 export interface Subtask {
   id: string;
   title: string;

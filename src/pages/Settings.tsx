@@ -9,6 +9,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import type { ReactNode } from 'react';
+import type { CurrentStatus, QuestSettings } from '../types/quest';
 import { auth, db, googleProvider } from '../lib/firebase';
 import { requestNotificationPermission, initFCM } from '../lib/fcm';
 import { ChevronRight, X, Copy, Check } from 'lucide-react';
@@ -21,19 +22,9 @@ const KAKAOPAY_LINK = 'https://qr.kakaopay.com/FG9lfVXMF4e205136';
 const ACCOUNT_NUMBER = '110-309-931659 신한 양진형';
 
 /* ── Types ──────────────────────────────────────────────────────── */
-type CurrentStatus = '' | '직장인' | '프리랜서' | '학생' | '쉬는 중' | '교대근무';
 const STATUS_OPTIONS: Exclude<CurrentStatus, ''>[] = [
   '직장인', '프리랜서', '학생', '쉬는 중', '교대근무',
 ];
-
-interface QuestSettings {
-  itemsToCarry: string;
-  prepTime: string;
-  outingRoutine: string;
-  morningRoutine: string;
-  eveningRoutine: string;
-  currentStatus: CurrentStatus;
-}
 
 interface DailyReminder {
   enabled: boolean;

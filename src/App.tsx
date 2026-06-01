@@ -10,13 +10,14 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  getDoc,
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
 import { auth, db } from './lib/firebase';
 import { processVoiceInput } from './lib/claude';
 import { requestNotificationPermission, initFCM, scheduleQuestNotification } from './lib/fcm';
-import type { AIResponse, AISubtaskItem, Quest, QuestLocation, Subtask } from './types/quest';
+import type { AIResponse, AISubtaskItem, Quest, QuestLocation, QuestSettings, Subtask } from './types/quest';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Home } from './pages/Home';
@@ -66,10 +67,14 @@ function MainApp({ user }: { user: User }) {
   const [toast, setToast] = useState<{ msg: string; type: 'error' | 'ok' } | null>(null);
   const [showNotifModal, setShowNotifModal] = useState(false);
 
+  const [questSettings, setQuestSettings] = useState<QuestSettings | null>(null);
+
   // Track scheduled notification timeouts (questId → timeoutId)
   const scheduledNotifs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const questsRef = useRef(quests);
   questsRef.current = quests;
+  const questSettingsRef = useRef(questSettings);
+  questSettingsRef.current = questSettings;
 
   const showToast = (msg: string, type: 'error' | 'ok' = 'error') => {
     setToast({ msg, type });
@@ -103,6 +108,24 @@ function MainApp({ user }: { user: User }) {
     );
   }, [user.uid]);
 
+  // Load user quest settings (for AI context)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data['questSettings']) {
+            setQuestSettings(data['questSettings'] as QuestSettings);
+          }
+        }
+      } catch (e) {
+        console.warn('퀘스트 설정 로딩 실패:', e);
+      }
+    };
+    void load();
+  }, [user.uid]);
+
   // Completed quests listener
   useEffect(() => {
     const q = query(questsCol(user.uid), where('done', '==', true));
@@ -130,7 +153,7 @@ function MainApp({ user }: { user: User }) {
   const handleVoiceInput = async (text: string): Promise<void> => {
     setIsProcessing(true);
     try {
-      const result: AIResponse = await processVoiceInput(text, questsRef.current);
+      const result: AIResponse = await processVoiceInput(text, questsRef.current, questSettingsRef.current ?? undefined);
 
       if (result.action === 'create') {
         const isFirstQuest = questsRef.current.length === 0;
