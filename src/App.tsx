@@ -22,19 +22,11 @@ import { Login } from './pages/Login';
 import { Home } from './pages/Home';
 import { Journal } from './pages/Journal';
 import { History } from './pages/History';
+import { Settings } from './pages/Settings';
 import { BottomNav } from './components/BottomNav';
 import type { Page } from './components/BottomNav';
 import { NotificationPermissionModal } from './components/NotificationPermissionModal';
 import { Loader2 } from 'lucide-react';
-
-function Settings() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-8">
-      <p className="text-[18px] font-semibold text-[#1A1A1A]">설정</p>
-      <p className="text-[14px] text-[#9A9A9A]">Phase 3에서 만나요</p>
-    </div>
-  );
-}
 
 /** location → 레거시 category 파생 (Firestore 하위호환) */
 function locationToCategory(location: QuestLocation): '실내' | '외출' {
@@ -399,7 +391,7 @@ function MainApp({ user }: { user: User }) {
           />
         )}
         {page === 'history' && <History completedQuests={completedQuests} />}
-        {page === 'settings' && <Settings />}
+        {page === 'settings' && <Settings user={user} />}
       </main>
 
       <BottomNav
