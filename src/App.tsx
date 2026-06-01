@@ -174,6 +174,7 @@ function MainApp({ user }: { user: User }) {
             priority: q.priority,
             subtasks: makeSubtasks(q.subtasks),
             done: false,
+            notified: false,
             order: maxOrder + i + 1,
             createdAt: serverTimestamp(),
             scheduledAt: scheduledAt ?? null,
@@ -204,6 +205,7 @@ function MainApp({ user }: { user: User }) {
             fields.timeOfDay = update.timeOfDay;
             const newScheduledAt = computeScheduledAt(update.timeOfDay);
             fields.scheduledAt = newScheduledAt ?? null;
+            fields.notified = false;
           }
           if (update.order !== undefined) fields.order = update.order;
           if (Object.keys(fields).length > 0) {
@@ -245,6 +247,7 @@ function MainApp({ user }: { user: User }) {
         if (changes.timeOfDay) {
           fields.timeOfDay = changes.timeOfDay;
           fields.scheduledAt = computeScheduledAt(changes.timeOfDay) ?? null;
+          fields.notified = false;
         }
         if (changes.priority) fields.priority = changes.priority;
         if (Object.keys(fields).length > 0) {

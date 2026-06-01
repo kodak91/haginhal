@@ -1,0 +1,31 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "quests",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "done",        "order": "ASCENDING" },
+        { "fieldPath": "scheduledAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "quests",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "done",        "order": "ASCENDING" },
+        { "fieldPath": "notified",    "order": "ASCENDING" },
+        { "fieldPath": "scheduledAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "notifSettings.enabled",               "order": "ASCENDING" },
+        { "fieldPath": "notifSettings.dailyReminder.enabled", "order": "ASCENDING" },
+        { "fieldPath": "notifSettings.dailyReminder.time",    "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

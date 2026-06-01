@@ -15,6 +15,12 @@ dist-ssr
 .env.local
 .vercel
 
+# Firebase
+.firebase/
+functions/lib/
+functions/node_modules/
+functions/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
