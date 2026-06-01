@@ -25,10 +25,14 @@ export async function initFCM(uid: string): Promise<void> {
     });
 
     if (token) {
+      console.log('[FCM] token obtained:', token);
       await setDoc(doc(db, 'users', uid), { fcmToken: token }, { merge: true });
+      console.log('[FCM] token saved to Firestore uid=', uid);
+    } else {
+      console.warn('[FCM] getToken returned empty — check VAPID key or SW registration');
     }
   } catch (e) {
-    console.warn('FCM init failed (local notifications still work):', e);
+    console.warn('[FCM] init failed:', e);
   }
 }
 

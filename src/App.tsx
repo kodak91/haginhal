@@ -108,6 +108,14 @@ function MainApp({ user }: { user: User }) {
     );
   }, [user.uid]);
 
+  // Re-init FCM on every app load if permission already granted
+  // (covers users who granted permission before but whose token was never saved)
+  useEffect(() => {
+    if (Notification.permission === 'granted') {
+      void initFCM(user.uid);
+    }
+  }, [user.uid]);
+
   // Load user quest settings (for AI context)
   useEffect(() => {
     const load = async () => {
