@@ -18,7 +18,7 @@ const APP_VERSION = '1.0.0';
 const FEEDBACK_EMAIL = 'labangba.pd@gmail.com';
 const KAKAOPAY_LINK = 'https://qr.kakaopay.com/FG9lfVXMF4e205136';
 // TODO: 실제 계좌번호로 교체
-const ACCOUNT_NUMBER = '계좌번호를 여기에 입력해주세요';
+const ACCOUNT_NUMBER = '110-309-931659 신한 양진형';
 
 /* ── Types ──────────────────────────────────────────────────────── */
 type CurrentStatus = '' | '직장인' | '프리랜서' | '학생' | '쉬는 중' | '교대근무';
