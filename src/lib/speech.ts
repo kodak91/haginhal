@@ -43,5 +43,5 @@ export async function transcribeAudio(blob: Blob): Promise<string> {
 }
 
 export function isRecordingSupported(): boolean {
-  return !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+  return typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 }
