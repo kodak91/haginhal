@@ -145,9 +145,9 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response('Method not allowed', { status: 405 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return new Response('ANTHROPIC_API_KEY not configured', { status: 500 });
+    return new Response('GEMINI_API_KEY not configured', { status: 500 });
   }
 
   let text: string;
@@ -187,31 +187,32 @@ export default async function handler(req: Request): Promise<Response> {
 
   const systemPrompt = buildSystemPrompt(questSettings);
 
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-    }),
-  });
+  const geminiRes = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+        generationConfig: {
+          maxOutputTokens: 1024,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      }),
+    }
+  );
 
-  if (!anthropicRes.ok) {
-    const errText = await anthropicRes.text().catch(() => '');
-    return new Response(`Anthropic error: ${errText}`, { status: 502 });
+  if (!geminiRes.ok) {
+    const errText = await geminiRes.text().catch(() => '');
+    return new Response(`Gemini error: ${errText}`, { status: 502 });
   }
 
-  const data = await anthropicRes.json() as {
-    content: Array<{ type: string; text: string }>;
+  const data = await geminiRes.json() as {
+    candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
   };
 
-  const raw = data.content?.[0]?.text?.trim() ?? '';
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
   const jsonStr = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
 
   try {

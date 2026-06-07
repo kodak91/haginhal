@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Mic, Loader2, Send, X } from 'lucide-react';
-import type { ISpeechRecognition } from '../lib/speech';
-import { createRecognition } from '../lib/speech';
+import type { RecordingHandle } from '../lib/speech';
+import { startRecording, transcribeAudio, isRecordingSupported } from '../lib/speech';
 
 const MAX_RECORD_MS = 30_000;
 
@@ -25,8 +25,7 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
   const tickTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const isLongPress = useRef(false);
   const isListeningRef = useRef(false);
-  const recognitionRef = useRef<ISpeechRecognition | null>(null);
-  const transcriptRef = useRef('');
+  const recordingRef = useRef<RecordingHandle | null>(null);
 
   const clearAllTimers = () => {
     clearTimeout(autoStopTimer.current);
@@ -55,55 +54,52 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
     tickTimer.current = setInterval(() => setElapsed((s) => s + 1), 1000);
   };
 
-  const startListening = () => {
-    const rec = createRecognition();
-    if (!rec) { setModalOpen(true); return; }
+  const startListening = async () => {
+    if (!isRecordingSupported()) { setModalOpen(true); return; }
 
-    recognitionRef.current = rec;
-    transcriptRef.current = '';
-    isListeningRef.current = true;
-    setVoiceState('listening');
-    startTick();
+    try {
+      const handle = await startRecording();
+      recordingRef.current = handle;
+      isListeningRef.current = true;
+      setVoiceState('listening');
+      startTick();
 
-    autoStopTimer.current = setTimeout(() => {
-      isListeningRef.current = false;
-      recognitionRef.current?.stop();
-    }, MAX_RECORD_MS);
-
-    rec.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          transcriptRef.current += e.results[i][0].transcript;
-        }
-      }
-    };
-
-    rec.onerror = (err) => {
-      if (err.error === 'no-speech' || err.error === 'audio-capture') return;
-      isListeningRef.current = false;
-      clearAllTimers();
-      setVoiceState('idle');
-    };
-
-    rec.onend = () => {
-      if (isListeningRef.current) {
-        // 브라우저가 짧은 정적에 종료 → 재시작 (사용자가 버튼 떼기 전까지 유지)
-        try { rec.start(); } catch { /* ignore */ }
-        return;
-      }
-      clearAllTimers();
-      const t = transcriptRef.current.trim();
-      if (t) void submitText(t);
-      else setVoiceState('idle');
-    };
-
-    rec.start();
+      autoStopTimer.current = setTimeout(() => {
+        if (isListeningRef.current) stopListening();
+      }, MAX_RECORD_MS);
+    } catch {
+      // 마이크 권한 거부 또는 장치 없음
+      setModalOpen(true);
+    }
   };
 
   const stopListening = () => {
+    if (!isListeningRef.current) return;
     isListeningRef.current = false;
     clearAllTimers();
-    recognitionRef.current?.stop();
+
+    const handle = recordingRef.current;
+    recordingRef.current = null;
+
+    if (!handle) { setVoiceState('idle'); return; }
+
+    setVoiceState('processing');
+
+    void (async () => {
+      try {
+        const blob = await handle.stop();
+        const transcript = await transcribeAudio(blob);
+        if (transcript.trim()) {
+          await submitText(transcript);
+        } else {
+          setVoiceState('idle');
+        }
+      } catch {
+        setErrorMsg('음성 변환에 실패했어요');
+        setVoiceState('error');
+        setTimeout(() => setVoiceState('idle'), 2000);
+      }
+    })();
   };
 
   const handlePressStart = () => {
@@ -112,7 +108,7 @@ export function VoiceButton({ onInput, hasQuests = false }: Props) {
     pressTimer.current = setTimeout(() => {
       isLongPress.current = true;
       if (navigator.vibrate) navigator.vibrate(30);
-      startListening();
+      void startListening();
     }, 250);
   };
 
