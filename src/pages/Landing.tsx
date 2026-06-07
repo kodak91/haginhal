@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Mic } from 'lucide-react';
+import { Mic, BookOpen, MapPin, Clock } from 'lucide-react';
 
 interface Props {
   onStart: () => void;
@@ -93,13 +93,206 @@ function DemoCard() {
   );
 }
 
+/* ── Hero phone mockup ─────────────────────────────────────────── */
+function HeroPhoneMockup() {
+  return (
+    <div style={{
+      width: 210,
+      border: '2px solid #2A2A2A',
+      borderRadius: '28px 28px 0 0',
+      borderBottom: 'none',
+      overflow: 'hidden',
+      boxShadow: '0 -24px 60px rgba(70,224,138,0.12)',
+      WebkitMask: 'linear-gradient(to bottom, black 60%, transparent 100%)',
+      mask: 'linear-gradient(to bottom, black 60%, transparent 100%)',
+      background: '#F2F2F2',
+    }}>
+      {/* 상태바 */}
+      <div style={{ background: '#111', height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 56, height: 12, background: '#222', borderRadius: 99 }} />
+      </div>
+
+      <div style={{ padding: '10px 10px 0' }}>
+        {/* 퀘스트 인덱스 */}
+        <div style={{ textAlign: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 10, color: '#9A9A9A' }}>2 / 4</span>
+        </div>
+
+        {/* 퀘스트 카드 */}
+        <div style={{ background: 'white', border: '2px solid #1A1A1A', borderRadius: 18, padding: '11px 13px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+            <MapPin size={10} strokeWidth={1.5} color="#9A9A9A" />
+            <span style={{ fontSize: 10, color: '#9A9A9A' }}>밖 · 오후 · 보통</span>
+          </div>
+
+          {/* 진행 바 */}
+          <div style={{ height: 3, background: '#F2F2F2', borderRadius: 99, marginBottom: 8 }}>
+            <div style={{ width: '33%', height: '100%', background: '#46E08A', borderRadius: 99 }} />
+          </div>
+
+          <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1A1A1A', margin: '0 0 2px', letterSpacing: '-0.02em' }}>
+            도서관 책 반납하기
+          </h3>
+          <p style={{ fontSize: 10, color: '#9A9A9A', margin: '0 0 10px' }}>1/3 단계 완료</p>
+
+          {/* 세부 목록 */}
+          {[
+            { text: '도서관 카드 챙기기', done: true, min: 2 },
+            { text: '책 가방에 넣기', done: false, min: 5, active: true },
+            { text: '도서관 이동하기', done: false, min: 20 },
+          ].map((s, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '6px 7px', marginBottom: 3,
+              background: (s as { active?: boolean }).active ? '#F9F9F9' : 'transparent',
+              border: `1px solid ${(s as { active?: boolean }).active ? '#1A1A1A' : 'transparent'}`,
+              borderRadius: 9,
+            }}>
+              <div style={{
+                width: 17, height: 17, borderRadius: '50%', flexShrink: 0,
+                border: `1.5px solid ${s.done ? '#1A1A1A' : '#D0D0D0'}`,
+                background: s.done ? '#1A1A1A' : 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {s.done && <svg width="8" height="6" viewBox="0 0 8 6" fill="none"><path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round"/></svg>}
+              </div>
+              <span style={{ flex: 1, fontSize: 11, color: s.done ? '#9A9A9A' : '#1A1A1A', textDecoration: s.done ? 'line-through' : 'none', fontWeight: (s as { active?: boolean }).active ? 600 : 400 }}>{s.text}</span>
+              <span style={{ fontSize: 9, color: '#C0C0C0', flexShrink: 0 }}>{s.min}분</span>
+            </div>
+          ))}
+        </div>
+
+        {/* 액션 버튼 */}
+        <div style={{ display: 'flex', gap: 7, marginTop: 10, alignItems: 'center' }}>
+          <div style={{ flex: 1, background: '#1A1A1A', borderRadius: 999, padding: '10px 0', textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'white' }}>완료</div>
+          <div style={{ width: 42, height: 42, background: '#46E08A', border: '2px solid #1A1A1A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Mic size={18} strokeWidth={1.5} color="#1A1A1A" />
+          </div>
+          <div style={{ width: 36, height: 36, border: '2px solid #1A1A1A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="#1A1A1A"><polygon points="2,1 9,4.5 2,8"/></svg>
+          </div>
+        </div>
+
+        {/* 하단 네비 */}
+        <div style={{ marginTop: 14, borderTop: '1px solid #E0E0E0', display: 'flex', justifyContent: 'space-around', padding: '8px 0 2px' }}>
+          {[{ label: '홈', active: true }, { label: '일지', active: false }, { label: '기록', active: false }, { label: '설정', active: false }].map((item) => (
+            <div key={item.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <div style={{ width: 14, height: 14, background: item.active ? '#46E08A' : '#D8D8D8', borderRadius: 4 }} />
+              <span style={{ fontSize: 8, color: item.active ? '#1A1A1A' : '#9A9A9A', fontWeight: item.active ? 700 : 400 }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Feature mockup: 퀘스트 카드 하나만 ───────────────────────── */
+function SingleQuestMockup() {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <div style={{
+        width: 200,
+        borderRadius: '20px 20px 0 0',
+        border: '2px solid #1A1A1A',
+        borderBottom: 'none',
+        overflow: 'hidden',
+        background: '#F2F2F2',
+      }}>
+        <div style={{ padding: '14px 12px 0' }}>
+          <div style={{ textAlign: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 10, color: '#9A9A9A', background: 'white', border: '1px solid #E0E0E0', borderRadius: 99, padding: '2px 10px' }}>1 / 1</span>
+          </div>
+          <div style={{ background: 'white', border: '2px solid #1A1A1A', borderRadius: 16, padding: '13px 14px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 7 }}>
+              <Clock size={10} strokeWidth={1.5} color="#9A9A9A" />
+              <span style={{ fontSize: 10, color: '#9A9A9A' }}>집 · 저녁 · 급함</span>
+            </div>
+            <div style={{ height: 3, background: '#F2F2F2', borderRadius: 99, marginBottom: 8 }}>
+              <div style={{ width: '0%', height: '100%', background: '#46E08A', borderRadius: 99 }} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1A1A1A', margin: '0 0 2px', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+              내일 발표 자료<br />준비하기
+            </h3>
+            <p style={{ fontSize: 10, color: '#9A9A9A', margin: '0 0 12px' }}>0/4 단계 완료</p>
+            {[
+              { text: '파일 열기', min: 2 },
+              { text: '목차 구성', min: 20 },
+            ].map((s, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 0', borderBottom: i === 0 ? '1px solid #F5F5F5' : 'none' }}>
+                <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid #D0D0D0', flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 11, color: '#1A1A1A' }}>{s.text}</span>
+                <span style={{ fontSize: 9, color: '#C0C0C0' }}>{s.min}분</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 7, marginTop: 10, paddingBottom: 0, alignItems: 'center' }}>
+            <div style={{ flex: 1, background: '#1A1A1A', borderRadius: 999, padding: '10px 0', textAlign: 'center', fontSize: 11, fontWeight: 700, color: 'white' }}>완료</div>
+            <div style={{ width: 40, height: 40, background: '#46E08A', border: '2px solid #1A1A1A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Mic size={17} strokeWidth={1.5} color="#1A1A1A" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Feature mockup: 세부 목록 첫 단계 강조 ──────────────────── */
+function SubtaskMockup() {
+  const steps = [
+    { text: '파일 열기', min: 2, done: false, active: true },
+    { text: '참고자료 찾기', min: 15, done: false, active: false },
+    { text: '초안 작성하기', min: 30, done: false, active: false },
+    { text: '검토 후 제출', min: 10, done: false, active: false },
+  ];
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center' }}>
+      <div style={{
+        width: 210,
+        borderRadius: '20px 20px 0 0',
+        border: '2px solid #1A1A1A',
+        borderBottom: 'none',
+        overflow: 'hidden',
+        background: 'white',
+      }}>
+        <div style={{ padding: '16px 14px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <BookOpen size={11} strokeWidth={1.5} color="#9A9A9A" />
+            <span style={{ fontSize: 11, color: '#9A9A9A', fontWeight: 500 }}>보고서 작성하기</span>
+          </div>
+          {steps.map((s, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', gap: 9,
+              padding: '9px 10px', marginBottom: 5,
+              background: s.active ? '#1A1A1A' : '#F9F9F9',
+              borderRadius: 11,
+              border: `1.5px solid ${s.active ? '#1A1A1A' : '#F0F0F0'}`,
+            }}>
+              <div style={{
+                width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                background: s.active ? '#46E08A' : '#E8E8E8',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: s.active ? '#1A1A1A' : '#ABABAB' }}>{i + 1}</span>
+              </div>
+              <span style={{ flex: 1, fontSize: 12, color: s.active ? 'white' : '#9A9A9A', fontWeight: s.active ? 700 : 400 }}>{s.text}</span>
+              <span style={{ fontSize: 10, color: s.active ? '#46E08A' : '#C8C8C8', fontWeight: s.active ? 700 : 400 }}>{s.min}분</span>
+            </div>
+          ))}
+          <div style={{ height: 18 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Feature card ─────────────────────────────────────────────── */
-function FeatureCard({ tag, title, body, screenshot, screenshotAlt }: {
+function FeatureCard({ tag, title, body, mockup }: {
   tag: string;
   title: string;
   body: string;
-  screenshot?: string;
-  screenshotAlt?: string;
+  mockup?: React.ReactNode;
 }) {
   return (
     <div style={{
@@ -108,7 +301,7 @@ function FeatureCard({ tag, title, body, screenshot, screenshotAlt }: {
       background: 'white',
       overflow: 'hidden',
     }}>
-      <div style={{ padding: '24px 22px', borderBottom: screenshot ? '2px solid #F2F2F2' : 'none' }}>
+      <div style={{ padding: '24px 22px', borderBottom: mockup ? '2px solid #F2F2F2' : 'none' }}>
         <span style={{
           display: 'inline-block', background: '#46E08A', color: '#1A1A1A',
           fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '3px 10px', marginBottom: 12,
@@ -116,20 +309,9 @@ function FeatureCard({ tag, title, body, screenshot, screenshotAlt }: {
         <h3 style={{ fontSize: 20, fontWeight: 800, color: '#1A1A1A', margin: '0 0 10px', letterSpacing: '-0.02em', lineHeight: 1.25 }}>{title}</h3>
         <p style={{ fontSize: 14, color: '#5A5A5A', margin: 0, lineHeight: 1.75 }}>{body}</p>
       </div>
-      {screenshot && (
+      {mockup && (
         <div style={{ background: '#F2F2F2', display: 'flex', justifyContent: 'center', padding: '24px 24px 0', overflow: 'hidden' }}>
-          <img
-            src={screenshot}
-            alt={screenshotAlt}
-            style={{
-              width: 200,
-              borderRadius: '16px 16px 0 0',
-              border: '2px solid #1A1A1A',
-              borderBottom: 'none',
-              display: 'block',
-              boxShadow: '0 -8px 24px rgba(0,0,0,0.08)',
-            }}
-          />
+          {mockup}
         </div>
       )}
     </div>
@@ -217,22 +399,7 @@ export function Landing({ onStart }: Props) {
           display: 'flex', justifyContent: 'center',
           animation: 'heroIn 1s cubic-bezier(.16,1,.3,1) 0.55s both',
         }}>
-          <div style={{
-            width: 210,
-            border: '2px solid #2A2A2A',
-            borderRadius: '28px 28px 0 0',
-            borderBottom: 'none',
-            overflow: 'hidden',
-            boxShadow: '0 -24px 60px rgba(70,224,138,0.12)',
-            WebkitMask: 'linear-gradient(to bottom, black 55%, transparent 100%)',
-            mask: 'linear-gradient(to bottom, black 55%, transparent 100%)',
-          }}>
-            <img
-              src="/app_screenshot/KakaoTalk_20260531_130354844_04.jpg"
-              alt="앱 화면"
-              style={{ width: '100%', display: 'block' }}
-            />
-          </div>
+          <HeroPhoneMockup />
         </div>
       </section>
 
@@ -332,8 +499,7 @@ export function Landing({ onStart }: Props) {
             tag="지금 할 거 딱 하나"
             title="목록이 많으면 의욕이 사라져요"
             body="목록이 여러 개 있고 순서가 복잡해 보이면 시작도 전에 지쳐요. 그래서 지금 해야 하는 거 딱 하나만 보여줘요. 나머지는 안 보여요."
-            screenshot="/app_screenshot/KakaoTalk_20260531_130354844_02.jpg"
-            screenshotAlt="퀘스트 카드"
+            mockup={<SingleQuestMockup />}
           />
         </Reveal>
 
@@ -342,8 +508,7 @@ export function Landing({ onStart }: Props) {
             tag="아주 쉬운 첫 단계"
             title="'시작'이 제일 어려우니까요"
             body="ADHD는 작업에 시작하기 어렵고 집중 상태에 들기 힘들어요. 그래서 세부 할 일의 첫 번째는 항상 '책 펴기', '파일 열기' 처럼 2분 안에 할 수 있는 것으로 만들어요."
-            screenshot="/app_screenshot/KakaoTalk_20260531_130354844_01.jpg"
-            screenshotAlt="세부 목록"
+            mockup={<SubtaskMockup />}
           />
         </Reveal>
 
