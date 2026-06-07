@@ -33,3 +33,10 @@ functions/.env
 *.sw?
 
 .vercel
+
+# Firebase 서비스 계정 키
+haginhal-e35a3-firebase-adminsdk-fbsvc-6cef74527d.json
+functions/haginhal-e35a3-firebase-adminsdk-fbsvc-6cef74527d.json
+
+# 환경변수
+.env
