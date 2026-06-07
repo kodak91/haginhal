@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Quest, Subtask } from '../types/quest';
-import { Zap, GripVertical, X, Plus, ChevronRight, Trash2, RotateCcw } from 'lucide-react';
+import { Zap, X, Plus, RotateCcw } from 'lucide-react';
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
 const PRIORITY_LABEL = { high: '급함', medium: '보통', low: '여유' };
 const PRIORITY_DOT = { high: 'bg-[#1A1A1A]', medium: 'bg-[#9A9A9A]', low: 'bg-[#D0D0D0]' };
+
+function getTodayKSTStart(): Date {
+  const now = new Date();
+  const kstNow = new Date(now.getTime() + 9 * 3600 * 1000);
+  const kstMidnight = new Date(
+    Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate())
+  );
+  return new Date(kstMidnight.getTime() - 9 * 3600 * 1000);
+}
 
 interface EditSubtask {
   id: string;
@@ -28,6 +37,11 @@ export function Journal({ quests, completedQuests, onComplete, onEditSave, onReo
     (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
   );
 
+  const todayStart = getTodayKSTStart();
+  const todayCompleted = completedQuests.filter(
+    (q) => (q.completedAt ?? q.createdAt) >= todayStart
+  );
+
   // Local display order (optimistic, diverges during drag)
   const [displayItems, setDisplayItems] = useState<Quest[]>(sorted);
   const displayItemsRef = useRef<Quest[]>(displayItems);
@@ -42,7 +56,11 @@ export function Journal({ quests, completedQuests, onComplete, onEditSave, onReo
     if (!draggingIdRef.current) setDisplayItems(sorted);
   }, [quests]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [editMode, setEditMode] = useState(false);
+  // Long-press drag state
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const touchStartY = useRef(0);
+  const wasLongPress = useRef(false);
+
   const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editSubtasks, setEditSubtasks] = useState<EditSubtask[]>([]);
@@ -71,58 +89,77 @@ export function Journal({ quests, completedQuests, onComplete, onEditSave, onReo
     closeEdit();
   };
 
-  // ── Drag to reorder ──────────────────────────────────────────────
-  const handleGripTouch = (e: React.TouchEvent, questId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // ── Long-press drag ──────────────────────────────────────────────
+  const handleItemTouchStart = (e: React.TouchEvent, questId: string) => {
+    touchStartY.current = e.touches[0].clientY;
+    wasLongPress.current = false;
+    clearTimeout(longPressTimer.current);
 
-    draggingIdRef.current = questId;
-    setDraggingId(questId);
+    longPressTimer.current = setTimeout(() => {
+      wasLongPress.current = true;
+      if (navigator.vibrate) navigator.vibrate(30);
+      draggingIdRef.current = questId;
+      setDraggingId(questId);
 
-    const listEl = listRef.current;
+      const listEl = listRef.current;
 
-    const onMove = (me: TouchEvent) => {
-      me.preventDefault();
-      if (!listEl || !draggingIdRef.current) return;
+      const onMove = (me: TouchEvent) => {
+        me.preventDefault();
+        if (!listEl || !draggingIdRef.current) return;
 
-      const touch = me.touches[0];
-      const listRect = listEl.getBoundingClientRect();
-      const children = Array.from(listEl.children) as HTMLElement[];
+        const touch = me.touches[0];
+        const listRect = listEl.getBoundingClientRect();
+        const relY = touch.clientY - listRect.top + listEl.scrollTop;
+        const activeItems = Array.from(listEl.querySelectorAll('[data-quest-id]')) as HTMLElement[];
 
-      // Determine insert slot from touch Y relative to list
-      const relY = touch.clientY - listRect.top + listEl.scrollTop;
-      let insertIdx = children.length - 1;
-      for (let i = 0; i < children.length; i++) {
-        if (relY < children[i].offsetTop + children[i].offsetHeight / 2) {
-          insertIdx = i;
-          break;
+        let insertIdx = activeItems.length - 1;
+        for (let i = 0; i < activeItems.length; i++) {
+          if (relY < activeItems[i].offsetTop + activeItems[i].offsetHeight / 2) {
+            insertIdx = i;
+            break;
+          }
         }
-      }
 
-      setDisplayItems((prev) => {
-        const fromIdx = prev.findIndex((q) => q.id === draggingIdRef.current);
-        if (fromIdx === -1 || fromIdx === insertIdx) return prev;
-        const arr = [...prev];
-        const [item] = arr.splice(fromIdx, 1);
-        arr.splice(insertIdx, 0, item);
-        return arr;
-      });
-    };
+        setDisplayItems((prev) => {
+          const fromIdx = prev.findIndex((q) => q.id === draggingIdRef.current);
+          if (fromIdx === -1 || fromIdx === insertIdx) return prev;
+          const arr = [...prev];
+          const [item] = arr.splice(fromIdx, 1);
+          arr.splice(insertIdx, 0, item);
+          return arr;
+        });
+      };
 
-    const onEnd = () => {
-      document.removeEventListener('touchmove', onMove);
-      document.removeEventListener('touchend', onEnd);
-      draggingIdRef.current = null;
-      setDraggingId(null);
-      onReorder(displayItemsRef.current);
-    };
+      const onEnd = () => {
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onEnd);
+        draggingIdRef.current = null;
+        setDraggingId(null);
+        onReorder(displayItemsRef.current);
+      };
 
-    document.addEventListener('touchmove', onMove, { passive: false });
-    document.addEventListener('touchend', onEnd, { once: true });
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd, { once: true });
+    }, 300);
   };
 
-  // ── Empty state ───────────────────────────────────────────────────
-  const isEmpty = sorted.length === 0 && completedQuests.length === 0;
+  const handleItemTouchMove = (e: React.TouchEvent) => {
+    if (draggingIdRef.current) return;
+    const deltaY = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (deltaY > 8) clearTimeout(longPressTimer.current);
+  };
+
+  const handleItemTouchEnd = () => {
+    clearTimeout(longPressTimer.current);
+  };
+
+  const handleItemClick = (quest: Quest) => {
+    if (wasLongPress.current) return;
+    openEdit(quest);
+  };
+
+  // ── Empty state ──────────────────────────────────────────────────
+  const isEmpty = sorted.length === 0 && todayCompleted.length === 0;
   if (isEmpty) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
@@ -139,26 +176,11 @@ export function Journal({ quests, completedQuests, onComplete, onEditSave, onReo
         {/* Header */}
         <div className="px-5 pt-5 pb-3 flex items-center justify-between">
           <h1 className="text-[17px] font-bold text-[#1A1A1A]">일지</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-[13px] text-[#9A9A9A]">
-              {sorted.length > 0 ? `진행 중 ${sorted.length}개` : ''}
-              {sorted.length > 0 && completedQuests.length > 0 ? ' · ' : ''}
-              {completedQuests.length > 0 ? `완료 ${completedQuests.length}개` : ''}
-            </span>
-            {sorted.length > 0 && (
-              <button
-                onClick={() => setEditMode((v) => !v)}
-                className={`
-                  text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors
-                  ${editMode
-                    ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]'
-                    : 'text-[#9A9A9A] border-[#C0C0C0]'}
-                `}
-              >
-                {editMode ? '완료' : '편집'}
-              </button>
-            )}
-          </div>
+          <span className="text-[13px] text-[#9A9A9A]">
+            {sorted.length > 0 ? `진행 중 ${sorted.length}개` : ''}
+            {sorted.length > 0 && todayCompleted.length > 0 ? ' · ' : ''}
+            {todayCompleted.length > 0 ? `완료 ${todayCompleted.length}개` : ''}
+          </span>
         </div>
 
         <ul ref={listRef} className="flex-1 overflow-y-auto px-5 pb-4 scrollbar-hide">
@@ -177,73 +199,57 @@ export function Journal({ quests, completedQuests, onComplete, onEditSave, onReo
             return (
               <li
                 key={quest.id}
-                onClick={() => { if (editMode) openEdit(quest); }}
+                data-quest-id={quest.id}
+                onTouchStart={(e) => handleItemTouchStart(e, quest.id)}
+                onTouchMove={handleItemTouchMove}
+                onTouchEnd={handleItemTouchEnd}
+                onClick={() => handleItemClick(quest)}
                 className={`
                   bg-white border-2 border-[#1A1A1A] rounded-2xl px-3 py-3.5
-                  flex items-center gap-2.5 mb-2
-                  transition-all duration-150
+                  flex items-center gap-2.5 mb-2 cursor-pointer
+                  transition-all duration-150 active:bg-[#F9F9F9]
                   ${isDragging ? 'opacity-50 scale-[0.98] shadow-lg' : ''}
-                  ${editMode ? 'cursor-pointer active:bg-[#F9F9F9]' : ''}
                 `}
               >
-                {/* Left: grip (edit) or checkbox (normal) */}
-                {editMode ? (
-                  <button
-                    onTouchStart={(e) => handleGripTouch(e, quest.id)}
-                    className="shrink-0 p-1 text-[#C0C0C0] touch-none cursor-grab active:cursor-grabbing"
-                    aria-label="드래그해서 순서 변경"
-                  >
-                    <GripVertical size={18} strokeWidth={1.5} />
-                  </button>
-                ) : (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onComplete(quest.id); }}
-                    aria-label="완료"
-                    className="
-                      shrink-0 w-6 h-6 rounded-full border-2 border-[#1A1A1A]
-                      flex items-center justify-center
-                      active:bg-[#46E08A] transition-colors
-                    "
-                  />
-                )}
+                {/* Checkbox */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onComplete(quest.id); }}
+                  aria-label="완료"
+                  className="shrink-0 w-6 h-6 rounded-full border-2 border-[#1A1A1A] flex items-center justify-center active:bg-[#46E08A] transition-colors"
+                />
 
                 {/* Title */}
                 <p className="flex-1 text-[15px] font-semibold text-[#1A1A1A] truncate">
                   {quest.title}
                 </p>
 
-                {/* Right: meta + actions */}
+                {/* Right: priority + meta + delete */}
                 <div className="shrink-0 flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${PRIORITY_DOT[quest.priority]}`} />
                   <span className="text-[12px] text-[#9A9A9A] whitespace-nowrap">{metaStr}</span>
-                  {editMode ? (
-                    <>
-                      <ChevronRight size={14} strokeWidth={1.5} className="text-[#C0C0C0]" />
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(quest.id); }}
-                        className="ml-1 w-7 h-7 rounded-full flex items-center justify-center text-[#C0C0C0] active:text-red-400 active:bg-red-50 transition-colors"
-                        aria-label="삭제"
-                      >
-                        <Trash2 size={14} strokeWidth={1.5} />
-                      </button>
-                    </>
-                  ) : null}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(quest.id); }}
+                    className="ml-1 w-7 h-7 rounded-full flex items-center justify-center text-[#C0C0C0] active:text-red-400 active:bg-red-50 transition-colors"
+                    aria-label="삭제"
+                  >
+                    <X size={14} strokeWidth={1.5} />
+                  </button>
                 </div>
               </li>
             );
           })}
 
           {/* Divider */}
-          {completedQuests.length > 0 && (
+          {todayCompleted.length > 0 && (
             <li className="flex items-center gap-3 my-3 list-none">
               <div className="flex-1 border-t border-[#E0E0E0]" />
-              <span className="text-[11px] text-[#9A9A9A] shrink-0">완료됨</span>
+              <span className="text-[11px] text-[#9A9A9A] shrink-0">오늘 완료</span>
               <div className="flex-1 border-t border-[#E0E0E0]" />
             </li>
           )}
 
-          {/* Completed quests — tap to restore */}
-          {completedQuests.map((quest) => (
+          {/* Today's completed quests */}
+          {todayCompleted.map((quest) => (
             <li
               key={quest.id}
               onClick={() => onRestore(quest.id)}
